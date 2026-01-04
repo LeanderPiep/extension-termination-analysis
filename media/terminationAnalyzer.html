@@ -21,29 +21,24 @@
   >
     <h1>Termination Analyzer</h1>
 
-    <div class="section">
-      <div class="fn-label">Function to Analyze:</div>
-      <div class="fn-name">{{FUNCTION_NAME}}</div>
+    <!-- Function line: label + name inline -->
+    <div class="fn-line">
+      <span class="fn-label">Function:</span>
+      <span class="fn-name">{{FUNCTION_NAME}}</span>
     </div>
 
-    <div class="section">
-      <div class="row">
-        <label>
-          <input id="specifyInputs" type="checkbox" />
-          Specify Inputs
-        </label>
-      </div>
+    <!-- Settings container -->
+    <div class="settings">
+      <div class="settings-header">Settings</div>
 
-      <div class="hint">
-        If enabled, specify numeric ranges for each input parameter.
+      <div class="setting-row">
+        <span class="setting-label">Specify Inputs</span>
+        <input id="specifyInputs" type="checkbox" />
       </div>
 
       <div id="inputsSection" class="inputs hidden">
         <div class="inputs-title">Input ranges</div>
         <div id="paramsContainer"></div>
-        <div class="hint">
-          Assuming numeric inputs (int/float/double) for now.
-        </div>
       </div>
     </div>
   </div>
