@@ -1,7 +1,6 @@
 (function () {
   const root = document.getElementById("root");
 
-  // data-params comes from extension.ts replacing {{PARAMS_JSON}}
   let paramNames = [];
   try {
     const raw = root?.dataset?.params ?? "[]";
@@ -11,18 +10,20 @@
     paramNames = [];
   }
 
-  console.log("PARAMS:", paramNames);
-
   const checkbox = document.getElementById("specifyInputs");
   const inputsSection = document.getElementById("inputsSection");
   const paramsContainer = document.getElementById("paramsContainer");
 
-  if (!checkbox || !inputsSection || !paramsContainer) {
-    console.error("Missing DOM elements", {
-      checkbox: !!checkbox,
-      inputsSection: !!inputsSection,
-      paramsContainer: !!paramsContainer,
-    });
+  const contextExtraction = document.getElementById("contextExtraction");
+  const terminationModel = document.getElementById("terminationModel");
+  const startBtn = document.getElementById("startBtn");
+
+  const contextOutput = document.getElementById("contextOutput");
+  const analysisOutput = document.getElementById("analysisOutput");
+
+
+  if (!checkbox || !inputsSection || !paramsContainer || !contextExtraction || !terminationModel || !startBtn) {
+    console.error("Missing DOM elements");
     return;
   }
 
@@ -41,11 +42,15 @@
       fromEl.type = "number";
       fromEl.placeholder = "from";
       fromEl.step = "any";
+      fromEl.dataset.param = name;
+      fromEl.dataset.bound = "from";
 
       const toEl = document.createElement("input");
       toEl.type = "number";
       toEl.placeholder = "to";
       toEl.step = "any";
+      toEl.dataset.param = name;
+      toEl.dataset.bound = "to";
 
       row.appendChild(nameEl);
       row.appendChild(fromEl);
@@ -53,6 +58,24 @@
 
       paramsContainer.appendChild(row);
     }
+  }
+
+  function collectRanges() {
+    const ranges = {};
+    const inputs = paramsContainer.querySelectorAll('input[type="number"]');
+
+    for (const el of inputs) {
+      const param = el.dataset.param;
+      const bound = el.dataset.bound;
+      if (!param || !bound) continue;
+
+      if (!ranges[param]) ranges[param] = { from: null, to: null };
+
+      const v = el.value.trim();
+      ranges[param][bound] = v === "" ? null : Number(v);
+    }
+
+    return ranges;
   }
 
   checkbox.addEventListener("change", () => {
@@ -65,4 +88,25 @@
       paramsContainer.innerHTML = "";
     }
   });
+
+  startBtn.addEventListener("click", () => {
+  const settings = {
+    contextExtraction: contextExtraction.value,
+    terminationAnalysis: terminationModel.value,
+    specifyInputs: checkbox.checked,
+    ranges: checkbox.checked ? collectRanges() : null,
+  };
+
+  console.log("START clicked. Settings:", settings);
+
+  // Temporary demo output
+  contextOutput.value =
+    "Context extracted using " + settings.contextExtraction + "...";
+
+  analysisOutput.value =
+    "Termination analysis performed using " +
+    settings.terminationAnalysis +
+    ".\n\nResult: TERMINATES (example)" + "\n\nkjaknfnk" + "\n\nkjaknfnk" + "\n\nkjaknfnk" + "\n\nkjaknfnk" + "\n\nkjaknfnk" + "\n\nkjaknfnk" + "\n\nkjaknfnk" + "\n\nkjaknfnk";
+});
+
 })();

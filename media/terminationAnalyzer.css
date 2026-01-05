@@ -28,7 +28,7 @@ h1 {
   font-weight: 700;
 }
 
-/* Function label + name inline */
+/* Function label + name */
 .fn-line {
   width: 100%;
   display: flex;
@@ -46,15 +46,14 @@ h1 {
   font-size: 18px;
   font-weight: 800;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  /* "same yellow like code" */
   color: #dcdcaa;
 }
 
-/* Settings container (box) */
+/* Settings container */
 .settings {
   width: 100%;
   margin-top: 6px;
-  padding: 12px 12px 10px;
+  padding: 12px 12px 12px;
   border-radius: 10px;
   border: 1px solid var(--vscode-input-border, #666);
   background: color-mix(in srgb, var(--vscode-editor-background) 92%, white 8%);
@@ -66,17 +65,49 @@ h1 {
   letter-spacing: 0.6px;
   text-transform: uppercase;
   opacity: 0.85;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   text-align: center;
 }
 
-/* One setting row: left aligned, label left + checkbox right */
+/* Form field rows (label + select) */
+.field {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.field-label {
+  font-size: 15px;
+  user-select: none;
+}
+
+/* Dropdown styling */
+.select {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--vscode-input-border, #666);
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  outline: none;
+}
+
+.select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+/* Specify Inputs row */
 .setting-row {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
+  margin-top: 8px;
 }
 
 .setting-label {
@@ -91,19 +122,17 @@ h1 {
 }
 
 .inputs-title {
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 400;
   text-align: center;
   margin: 6px 0 10px;
+  opacity: 0.9;
 }
 
 .hidden {
   display: none;
 }
 
-/* ---- PERFECT CENTERED PARAM ROWS ----
-   We keep the exact centered input block. Now inside left-aligned settings,
-   but the rows themselves are still perfectly centered.
-*/
 #paramsContainer {
   display: flex;
   flex-direction: column;
@@ -111,18 +140,13 @@ h1 {
   width: 100%;
 }
 
-/* Each row: centered block is inputs only (2 columns), name is absolutely placed left */
 .param {
   position: relative;
-
-  /* width of centered block (from + gap + to) */
   width: calc(80px + 6px + 80px);
-
   display: grid;
   grid-template-columns: 80px 80px;
   column-gap: 6px;
   align-items: center;
-
   margin: 6px 0;
 }
 
@@ -141,7 +165,7 @@ h1 {
   white-space: nowrap;
 }
 
-/* Compact number inputs */
+/* Number inputs */
 input[type="number"] {
   width: 80px;
   padding: 4px 6px;
@@ -157,12 +181,39 @@ input[type="number"]:focus {
   border-color: var(--vscode-focusBorder);
 }
 
-/* Make checkbox look nicer + consistent */
+/* Checkbox */
 input[type="checkbox"] {
   transform: translateY(1px);
 }
 
-/* On narrow panels, stack each param row nicely */
+/* Actions (Start button) */
+.actions {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.btn {
+  padding: 7px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--vscode-input-border, #666);
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, white);
+  cursor: pointer;
+}
+
+.btn:hover {
+  filter: brightness(1.05);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+/* Responsive */
 @media (max-width: 520px) {
   .fn-line {
     flex-direction: column;
@@ -170,8 +221,13 @@ input[type="checkbox"] {
     align-items: center;
   }
 
-  .settings {
-    padding: 12px;
+  .field {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .actions {
+    justify-content: center;
   }
 
   .param {
@@ -191,3 +247,48 @@ input[type="checkbox"] {
     width: 100%;
   }
 }
+
+/* Output (Context + Analysis) */
+.output {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.output-block {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.output-title {
+  font-size: 16px;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+.output-textarea {
+  width: 100%;
+  min-height: 240px;
+  resize: vertical;
+
+  padding: 10px;
+  font-size: 14px;
+  line-height: 1.45;
+
+  border-radius: 8px;
+  border: 1px solid var(--vscode-input-border, #666);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.output-textarea:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+

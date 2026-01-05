@@ -21,7 +21,7 @@
   >
     <h1>Termination Analyzer</h1>
 
-    <!-- Function line: label + name inline -->
+    <!-- Function line -->
     <div class="fn-line">
       <span class="fn-label">Function:</span>
       <span class="fn-name">{{FUNCTION_NAME}}</span>
@@ -31,16 +31,72 @@
     <div class="settings">
       <div class="settings-header">Settings</div>
 
+      <!-- Context Extraction -->
+      <div class="field">
+        <label class="field-label" for="contextExtraction">
+          Context Extraction:
+        </label>
+        <select id="contextExtraction" class="select">
+          <option value="ast" selected>AST</option>
+          <option value="codellama:13b">codellama:13b</option>
+          <option value="gpt-5.2">gpt-5.2</option>
+          <option value="claude-sonnet-4-5">claude-sonnet-4-5</option>
+        </select>
+      </div>
+
+      <!-- Termination Analysis -->
+      <div class="field">
+        <label class="field-label" for="terminationModel">
+          Termination Analysis:
+        </label>
+        <select id="terminationModel" class="select">
+          <option value="codellama:13b" selected>codellama:13b</option>
+          <option value="gpt-5.2">gpt-5.2</option>
+          <option value="claude-sonnet-4-5">claude-sonnet-4-5</option>
+        </select>
+      </div>
+
+      <!-- Specify Inputs -->
       <div class="setting-row">
         <span class="setting-label">Specify Inputs</span>
         <input id="specifyInputs" type="checkbox" />
       </div>
 
+      <!-- Inputs -->
       <div id="inputsSection" class="inputs hidden">
         <div class="inputs-title">Input ranges</div>
         <div id="paramsContainer"></div>
       </div>
+
+      <!-- Start Button -->
+      <div class="actions">
+        <button id="startBtn" class="btn">Start</button>
+      </div>
     </div>
+
+    <!-- Output sections -->
+<div class="output">
+  <div class="output-block">
+    <div class="output-title">Context</div>
+    <textarea
+      id="contextOutput"
+      class="output-textarea"
+      placeholder="Extracted context will appear here..."
+      readonly
+    ></textarea>
+  </div>
+
+  <div class="output-block">
+    <div class="output-title">Analysis</div>
+    <textarea
+      id="analysisOutput"
+      class="output-textarea"
+      placeholder="Termination analysis result will appear here..."
+      readonly
+    ></textarea>
+  </div>
+</div>
+
   </div>
 
   <script src="{{JS_URI}}" defer></script>
