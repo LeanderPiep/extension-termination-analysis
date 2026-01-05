@@ -72,6 +72,7 @@ function getWebviewContent(
 
   const htmlPath = vscode.Uri.joinPath(
     context.extensionUri,
+    "src",
     "media",
     "terminationAnalyzer.html"
   );
@@ -79,11 +80,11 @@ function getWebviewContent(
   let html = fs.readFileSync(htmlPath.fsPath, "utf8");
 
   const cssUri = webview.asWebviewUri(
-    vscode.Uri.joinPath(context.extensionUri, "media", "terminationAnalyzer.css")
+    vscode.Uri.joinPath(context.extensionUri, "src", "media", "terminationAnalyzer.css")
   );
 
   const jsUri = webview.asWebviewUri(
-    vscode.Uri.joinPath(context.extensionUri, "media", "terminationAnalyzer.js")
+    vscode.Uri.joinPath(context.extensionUri, "src", "media", "terminationAnalyzer.js")
   );
 
   html = html.replaceAll("{{CSP_SOURCE}}", webview.cspSource);
@@ -140,7 +141,7 @@ export function activate(context: vscode.ExtensionContext) {
         {
           enableScripts: true,
           localResourceRoots: [
-            vscode.Uri.joinPath(context.extensionUri, "media"),
+            vscode.Uri.joinPath(context.extensionUri, "src", "media"),
           ],
         }
       );
