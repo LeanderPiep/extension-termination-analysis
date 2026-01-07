@@ -272,7 +272,7 @@ input[type="checkbox"] {
 
 .output-textarea {
   width: 100%;
-  min-height: 240px;
+  min-height: 360px;
   resize: vertical;
 
   padding: 10px;

@@ -1,6 +1,9 @@
 (function () {
   const root = document.getElementById("root");
 
+  // VS Code webview API
+  const vscode = acquireVsCodeApi();
+
   let paramNames = [];
   try {
     const raw = root?.dataset?.params ?? "[]";
@@ -21,8 +24,14 @@
   const contextOutput = document.getElementById("contextOutput");
   const analysisOutput = document.getElementById("analysisOutput");
 
-
-  if (!checkbox || !inputsSection || !paramsContainer || !contextExtraction || !terminationModel || !startBtn) {
+  if (
+    !checkbox ||
+    !inputsSection ||
+    !paramsContainer ||
+    !contextExtraction ||
+    !terminationModel ||
+    !startBtn
+  ) {
     console.error("Missing DOM elements");
     return;
   }
@@ -89,24 +98,56 @@
     }
   });
 
+  // ✅ Start button -> send message to extension
   startBtn.addEventListener("click", () => {
-  const settings = {
-    contextExtraction: contextExtraction.value,
-    terminationAnalysis: terminationModel.value,
-    specifyInputs: checkbox.checked,
-    ranges: checkbox.checked ? collectRanges() : null,
-  };
+    const settings = {
+      contextExtraction: contextExtraction.value,
+      terminationAnalysis: terminationModel.value,
+      specifyInputs: checkbox.checked,
+      ranges: checkbox.checked ? collectRanges() : null,
+    };
 
-  console.log("START clicked. Settings:", settings);
+    // Optional UX: show loading state
+    startBtn.disabled = true;
+    startBtn.textContent = "Running...";
 
-  // Temporary demo output
-  contextOutput.value =
-    "Context extracted using " + settings.contextExtraction + "...";
+    if (contextOutput) contextOutput.value = "";
+    if (analysisOutput) analysisOutput.value = "";
 
-  analysisOutput.value =
-    "Termination analysis performed using " +
-    settings.terminationAnalysis +
-    ".\n\nResult: TERMINATES (example)" + "\n\nkjaknfnk" + "\n\nkjaknfnk" + "\n\nkjaknfnk" + "\n\nkjaknfnk" + "\n\nkjaknfnk" + "\n\nkjaknfnk" + "\n\nkjaknfnk" + "\n\nkjaknfnk";
-});
+    vscode.postMessage({ type: "start", settings });
+  });
 
+  // ✅ Receive results from extension
+  window.addEventListener("message", (event) => {
+    const msg = event.data;
+    if (!msg || typeof msg.type !== "string") return;
+
+    if (msg.type === "contextResult") {
+      // restore button
+      startBtn.disabled = false;
+      startBtn.textContent = "Start";
+
+      if (!msg.ok) {
+        const err = msg.error ?? "Unknown error";
+        if (contextOutput) contextOutput.value = `ERROR: ${err}`;
+        return;
+      }
+
+      if (contextOutput) contextOutput.value = msg.context ?? "";
+    }
+
+    // later: analysisResult, etc.
+    if (msg.type === "analysisResult") {
+      startBtn.disabled = false;
+      startBtn.textContent = "Start";
+
+      if (!msg.ok) {
+        const err = msg.error ?? "Unknown error";
+        if (analysisOutput) analysisOutput.value = `ERROR: ${err}`;
+        return;
+      }
+
+      if (analysisOutput) analysisOutput.value = msg.analysis ?? "";
+    }
+  });
 })();

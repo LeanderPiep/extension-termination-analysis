@@ -5,12 +5,7 @@ import * as fs from "fs";
 
 function runAstProbe(extensionPath: string, filePath: string, line1Based: number): Promise<any> {
   return new Promise((resolve, reject) => {
-    const scriptPath = path.join(
-      extensionPath,
-      "src",
-      "backend",
-      "ast_function_identification.py"
-    );
+    const scriptPath = path.join(extensionPath, "src", "backend", "ast_function_identification.py");
 
     execFile(
       "python",
@@ -24,11 +19,41 @@ function runAstProbe(extensionPath: string, filePath: string, line1Based: number
         try {
           resolve(JSON.parse(stdout));
         } catch {
-          reject(
-            new Error(
-              `Failed to parse JSON from backend.\nstdout:\n${stdout}\nstderr:\n${stderr}`
-            )
-          );
+          reject(new Error(`Failed to parse JSON from backend.\nstdout:\n${stdout}\nstderr:\n${stderr}`));
+        }
+      }
+    );
+  });
+}
+
+function runContextOrchestrator(
+  extensionPath: string,
+  mode: string,
+  functionName: string,
+  filePath: string
+): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const scriptPath = path.join(
+      extensionPath,
+      "src",
+      "backend",
+      "context extraction",
+      "orchestrator.py"
+    );
+
+    execFile(
+      "python",
+      [scriptPath, "--mode", mode, "--function", functionName, "--file", filePath],
+      { maxBuffer: 30 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (err) {
+          reject(new Error(`Context orchestrator failed: ${err.message}\n${stderr}`));
+          return;
+        }
+        try {
+          resolve(JSON.parse(stdout));
+        } catch {
+          reject(new Error(`Failed to parse JSON from orchestrator.\nstdout:\n${stdout}\nstderr:\n${stderr}`));
         }
       }
     );
@@ -70,13 +95,7 @@ function getWebviewContent(
 ): string {
   const webview = panel.webview;
 
-  const htmlPath = vscode.Uri.joinPath(
-    context.extensionUri,
-    "src",
-    "media",
-    "terminationAnalyzer.html"
-  );
-
+  const htmlPath = vscode.Uri.joinPath(context.extensionUri, "src", "media", "terminationAnalyzer.html");
   let html = fs.readFileSync(htmlPath.fsPath, "utf8");
 
   const cssUri = webview.asWebviewUri(
@@ -106,9 +125,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       const doc = editor.document;
       if (doc.languageId !== "python") {
-        vscode.window.showWarningMessage(
-          "Termination Analysis is only available for Python files."
-        );
+        vscode.window.showWarningMessage("Termination Analysis is only available for Python files.");
         return;
       }
 
@@ -118,20 +135,16 @@ export function activate(context: vscode.ExtensionContext) {
       }
 
       const pos = editor.selection.active;
-      const result = await runAstProbe(
-        context.extensionPath,
-        doc.uri.fsPath,
-        pos.line + 1
-      );
+      const filePath = doc.uri.fsPath;
+
+      const result = await runAstProbe(context.extensionPath, filePath, pos.line + 1);
 
       if (!result.ok || !result.function) {
-        vscode.window.showWarningMessage(
-          "Cursor is not inside a Python function."
-        );
+        vscode.window.showWarningMessage("Cursor is not inside a Python function.");
         return;
       }
 
-      const fnName = result.function.name;
+      const fnName: string = result.function.name;
       const paramNames = extractParamNames(result.function.params);
 
       const panel = vscode.window.createWebviewPanel(
@@ -140,18 +153,47 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.ViewColumn.Beside,
         {
           enableScripts: true,
-          localResourceRoots: [
-            vscode.Uri.joinPath(context.extensionUri, "src", "media"),
-          ],
+          localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, "src", "media")],
         }
       );
 
-      panel.webview.html = getWebviewContent(
-        context,
-        panel,
-        fnName,
-        paramNames
-      );
+      panel.webview.html = getWebviewContent(context, panel, fnName, paramNames);
+
+      // ✅ Listen for messages from the webview (Start button, etc.)
+      panel.webview.onDidReceiveMessage(async (msg) => {
+        if (!msg || typeof msg.type !== "string") return;
+
+        if (msg.type === "start") {
+          const mode = String(msg.settings?.contextExtraction ?? "ast");
+
+          try {
+            // Run python orchestrator
+            const ctxRes = await runContextOrchestrator(context.extensionPath, mode, fnName, filePath);
+
+            if (!ctxRes.ok) {
+              panel.webview.postMessage({
+                type: "contextResult",
+                ok: false,
+                error: ctxRes.error ?? "Context extraction failed",
+              });
+              return;
+            }
+
+            panel.webview.postMessage({
+              type: "contextResult",
+              ok: true,
+              context: ctxRes.context ?? "",
+              meta: ctxRes.meta ?? {},
+            });
+          } catch (e: any) {
+            panel.webview.postMessage({
+              type: "contextResult",
+              ok: false,
+              error: e?.message ?? String(e),
+            });
+          }
+        }
+      });
     })
   );
 }
