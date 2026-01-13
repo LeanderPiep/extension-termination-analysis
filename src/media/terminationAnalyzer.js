@@ -13,6 +13,16 @@
     paramNames = [];
   }
 
+    let paramTypes = {};
+    try {
+      const rawTypes = root?.dataset?.paramTypes ?? "{}";
+      paramTypes = JSON.parse(rawTypes);
+    } catch (e) {
+      console.error("Failed to parse data-param-types JSON", e);
+      paramTypes = {};
+    }
+
+
   const checkbox = document.getElementById("specifyInputs");
   const inputsSection = document.getElementById("inputsSection");
   const paramsContainer = document.getElementById("paramsContainer");
@@ -36,67 +46,153 @@
     return;
   }
 
+  const TYPE_OPTIONS = ["Dont Specify", "Integer", "Float", "String"];
+
   function renderParams() {
-    paramsContainer.innerHTML = "";
+  paramsContainer.innerHTML = "";
 
-    for (const name of paramNames) {
-      const row = document.createElement("div");
-      row.className = "param";
+  for (const name of paramNames) {
+    const row = document.createElement("div");
+    row.className = "param";
 
-      const nameEl = document.createElement("div");
-      nameEl.className = "param-name";
-      nameEl.textContent = name;
+    // type dropdown
+    const typeSelect = document.createElement("select");
+    typeSelect.className = "param-type";
+    typeSelect.dataset.param = name;
 
+    for (const opt of TYPE_OPTIONS) {
+      const o = document.createElement("option");
+      o.value = opt;
+      o.textContent = opt;
+      typeSelect.appendChild(o);
+    }
+
+    const defaultType = paramTypes?.[name] ?? "Dont Specify";
+    typeSelect.value = TYPE_OPTIONS.includes(defaultType) ? defaultType : "Dont Specify";
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "param-name";
+    nameEl.textContent = name;
+
+    // container for the inputs (so we can rerender per selection)
+    const inputsEl = document.createElement("div");
+    inputsEl.className = "param-inputs";
+    inputsEl.dataset.param = name;
+
+    function renderInputsForType(t) {
+      inputsEl.innerHTML = "";
+
+      if (t === "Dont Specify") {
+        // no inputs
+        return;
+      }
+
+      if (t === "String") {
+        const valEl = document.createElement("input");
+        valEl.type = "text";
+        valEl.placeholder = "value";
+        valEl.dataset.param = name;
+        valEl.dataset.kind = "value";
+        inputsEl.appendChild(valEl);
+        return;
+      }
+
+      // Integer / Float => range
       const fromEl = document.createElement("input");
       fromEl.type = "number";
       fromEl.placeholder = "from";
-      fromEl.step = "any";
+      fromEl.step = t === "Integer" ? "1" : "any";
       fromEl.dataset.param = name;
-      fromEl.dataset.bound = "from";
+      fromEl.dataset.kind = "from";
 
       const toEl = document.createElement("input");
       toEl.type = "number";
       toEl.placeholder = "to";
-      toEl.step = "any";
+      toEl.step = t === "Integer" ? "1" : "any";
       toEl.dataset.param = name;
-      toEl.dataset.bound = "to";
+      toEl.dataset.kind = "to";
 
-      row.appendChild(nameEl);
-      row.appendChild(fromEl);
-      row.appendChild(toEl);
-
-      paramsContainer.appendChild(row);
+      inputsEl.appendChild(fromEl);
+      inputsEl.appendChild(toEl);
     }
+
+    // initial render
+    renderInputsForType(typeSelect.value);
+
+    // rerender on change
+    typeSelect.addEventListener("change", () => {
+      renderInputsForType(typeSelect.value);
+    });
+
+    row.appendChild(typeSelect);
+    row.appendChild(nameEl);
+    row.appendChild(inputsEl);
+
+    paramsContainer.appendChild(row);
+  }
+}
+
+
+  function collectParamTypes() {
+    const out = {};
+    const selects = paramsContainer.querySelectorAll("select.param-type");
+
+    for (const sel of selects) {
+      const param = sel.dataset.param;
+      if (!param) continue;
+      out[param] = sel.value || "Dont Specify";
+    }
+
+    return out;
   }
 
-  function collectRanges() {
-    const ranges = {};
-    const inputs = paramsContainer.querySelectorAll('input[type="number"]');
 
-    for (const el of inputs) {
-      const param = el.dataset.param;
-      const bound = el.dataset.bound;
-      if (!param || !bound) continue;
+  function collectInputs() {
+  const out = {}; // param -> { type, from/to OR value } OR null
 
-      if (!ranges[param]) ranges[param] = { from: null, to: null };
+  // read current types
+  const selectedTypes = collectParamTypes();
 
-      const v = el.value.trim();
-      ranges[param][bound] = v === "" ? null : Number(v);
+  for (const [param, t] of Object.entries(selectedTypes)) {
+    if (t === "Dont Specify") {
+      out[param] = null;
+      continue;
     }
 
-    return ranges;
+    if (t === "String") {
+      const el = paramsContainer.querySelector(`input[data-param="${param}"][data-kind="value"]`);
+      const v = el ? el.value.trim() : "";
+      out[param] = { type: t, value: v === "" ? null : v };
+      continue;
+    }
+
+    // Integer / Float
+    const fromEl = paramsContainer.querySelector(`input[data-param="${param}"][data-kind="from"]`);
+    const toEl = paramsContainer.querySelector(`input[data-param="${param}"][data-kind="to"]`);
+
+    const fromRaw = fromEl ? fromEl.value.trim() : "";
+    const toRaw = toEl ? toEl.value.trim() : "";
+
+    out[param] = {
+      type: t,
+      from: fromRaw === "" ? null : Number(fromRaw),
+      to: toRaw === "" ? null : Number(toRaw),
+    };
   }
 
-  checkbox.addEventListener("change", () => {
-    const enabled = checkbox.checked;
-    inputsSection.classList.toggle("hidden", !enabled);
+  return out;
+}
 
-    if (enabled) {
-      renderParams();
-    } else {
-      paramsContainer.innerHTML = "";
-    }
-  });
+checkbox.addEventListener("change", () => {
+  const enabled = checkbox.checked;
+  inputsSection.classList.toggle("hidden", !enabled);
+
+  if (enabled) {
+    renderParams();
+  } else {
+    paramsContainer.innerHTML = "";
+  }
+});
 
   // ✅ Start button -> send message to extension
   startBtn.addEventListener("click", () => {
@@ -104,7 +200,8 @@
       contextExtraction: contextExtraction.value,
       terminationAnalysis: terminationModel.value,
       specifyInputs: checkbox.checked,
-      ranges: checkbox.checked ? collectRanges() : null,
+      paramTypes: checkbox.checked ? collectParamTypes() : null,
+      inputs: checkbox.checked ? collectInputs() : null,
     };
 
     // Optional UX: show loading state

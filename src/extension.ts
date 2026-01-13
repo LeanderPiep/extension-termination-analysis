@@ -69,29 +69,12 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#039;");
 }
 
-function extractParamNames(params: any): string[] {
-  const out: string[] = [];
-
-  const push = (arr: any[]) => {
-    for (const a of arr ?? []) {
-      if (a?.name) out.push(a.name);
-    }
-  };
-
-  push(params?.posonly);
-  push(params?.args);
-  if (params?.vararg?.name) out.push(`*${params.vararg.name}`);
-  push(params?.kwonly);
-  if (params?.kwarg?.name) out.push(`**${params.kwarg.name}`);
-
-  return out;
-}
-
 function getWebviewContent(
   context: vscode.ExtensionContext,
   panel: vscode.WebviewPanel,
   functionName: string,
-  paramNames: string[]
+  paramNames: string[],
+  paramTypes: Record<string, string>
 ): string {
   const webview = panel.webview;
 
@@ -113,6 +96,9 @@ function getWebviewContent(
 
   const paramsJson = JSON.stringify(paramNames).replace(/</g, "\\u003c");
   html = html.replaceAll("{{PARAMS_JSON}}", paramsJson);
+
+  const paramTypesJson = JSON.stringify(paramTypes).replace(/</g, "\\u003c");
+  html = html.replaceAll("{{PARAM_TYPES_JSON}}", paramTypesJson);
 
   return html;
 }
@@ -145,7 +131,8 @@ export function activate(context: vscode.ExtensionContext) {
       }
 
       const fnName: string = result.function.name;
-      const paramNames = extractParamNames(result.function.params);
+      const paramTypes: Record<string, string> = result.function.params ?? {};
+      const paramNames: string[] = Object.keys(paramTypes);
 
       const panel = vscode.window.createWebviewPanel(
         "terminationAnalyzer",
@@ -157,7 +144,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
       );
 
-      panel.webview.html = getWebviewContent(context, panel, fnName, paramNames);
+      panel.webview.html = getWebviewContent(context, panel, fnName, paramNames, paramTypes);
 
       // ✅ Listen for messages from the webview (Start button, etc.)
       panel.webview.onDidReceiveMessage(async (msg) => {

@@ -4,6 +4,10 @@ import json
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
+TYPE_DONT = "Dont Specify"
+TYPE_INT = "Integer"
+TYPE_FLOAT = "Float"
+TYPE_STRING = "String"
 
 def main():
     a = parse_args()
@@ -23,7 +27,7 @@ def main():
 
     name = fn.name  
     sp = node_span(fn)
-    params = extract_params(fn)
+    param_types = extract_param_type_defaults(fn)
 
     out = {
         "ok": True,
@@ -31,7 +35,7 @@ def main():
             "name": name,
             "start_line": sp[0] if sp else None,
             "end_line": sp[1] if sp else None,
-            "params": params,
+            "params": param_types,
         },
     }
     print(json.dumps(out))
@@ -83,48 +87,90 @@ def span_len(n: ast.AST) -> int:
         assert sp is not None
         return sp[1] - sp[0]
 
-
-def format_arg(arg: ast.arg) -> Dict[str, Any]:
-    return {
-        "name": arg.arg,
-        "annotation": ast.unparse(arg.annotation) if getattr(arg, "annotation", None) is not None else None,
-    }
-
 # get function parameters
-def extract_params(fn: ast.AST) -> Dict[str, Any]:
-    args = fn.args 
+def extract_param_type_defaults(fn: ast.AST) -> Dict[str, str]:
+    a = fn.args
+    params: List[ast.arg] = []
+    params += list(getattr(a, "posonlyargs", []))
+    params += list(a.args)
+    params += list(a.kwonlyargs)
 
-    def unparse_or_none(x):
-        return ast.unparse(x) if x is not None else None
+    out: Dict[str, str] = {}
+    for p in params:
+        out[p.arg] = _map_annotation_to_ui_type(p.annotation)
+    return out
 
-    posonly = [format_arg(a) for a in getattr(args, "posonlyargs", [])]
-    normal = [format_arg(a) for a in args.args]
-    kwonly = [format_arg(a) for a in args.kwonlyargs]
+def _map_annotation_to_ui_type(ann: Optional[ast.AST]) -> str:
+    if ann is None:
+        return TYPE_DONT
 
-    vararg = format_arg(args.vararg) if args.vararg is not None else None
-    kwarg = format_arg(args.kwarg) if args.kwarg is not None else None
+    # Try to unparse; if that fails, fall back
+    try:
+        s = ast.unparse(ann)
+    except Exception:
+        return TYPE_DONT
 
-    all_pos = posonly + normal
-    defaults = [unparse_or_none(d) for d in args.defaults]
-    defaults_map: Dict[str, Optional[str]] = {a["name"]: None for a in all_pos}
-    if defaults:
-        for a, d in zip(all_pos[-len(defaults):], defaults):
-            defaults_map[a["name"]] = d
+    # Normalize a bit
+    t = s.strip()
 
-    kw_defaults = [unparse_or_none(d) for d in args.kw_defaults]
-    kw_defaults_map: Dict[str, Optional[str]] = {a["name"]: None for a in kwonly}
-    for a, d in zip(kwonly, kw_defaults):
-        kw_defaults_map[a["name"]] = d
+    # Handle quoted forward refs: "int"
+    if (t.startswith("'") and t.endswith("'")) or (t.startswith('"') and t.endswith('"')):
+        t = t[1:-1].strip()
 
-    return {
-        "posonly": posonly,
-        "args": normal,
-        "vararg": vararg,
-        "kwonly": kwonly,
-        "kwarg": kwarg,
-        "defaults": defaults_map,
-        "kw_defaults": kw_defaults_map,
-    }
+    # Very conservative mapping: only obvious ones
+    # Accept builtins and common typing wrappers
+    # Examples: int, Optional[int], Union[int, None], Annotated[int, ...]
+    if "int" == t or t.endswith("[int]") or "int," in t or t.endswith("(int)"):
+        # this is too broad; better do structured parsing below
+        pass
+
+    # Better: check AST shape instead of string contains
+    # We'll match: Name(id="int"/"float"/"str") and Subscript(base=Name("Optional"/"Annotated"/"Union"), ...)
+    def base_name(node: ast.AST) -> Optional[str]:
+        if isinstance(node, ast.Name):
+            return node.id
+        if isinstance(node, ast.Attribute):
+            # typing.Optional etc.
+            return node.attr
+        return None
+
+    def is_named(node: ast.AST, name: str) -> bool:
+        return base_name(node) == name
+
+    def classify(node: ast.AST) -> str:
+        # direct: int/float/str
+        if is_named(node, "int"):
+            return TYPE_INT
+        if is_named(node, "float"):
+            return TYPE_FLOAT
+        if is_named(node, "str"):
+            return TYPE_STRING
+
+        # Optional[T], Annotated[T, ...], Union[T, None]
+        if isinstance(node, ast.Subscript):
+            bn = base_name(node.value)
+            if bn in {"Optional", "Annotated"}:
+                inner = node.slice
+                # slice can be Tuple or single
+                if isinstance(inner, ast.Tuple) and inner.elts:
+                    return classify(inner.elts[0])
+                return classify(inner)
+
+            if bn == "Union":
+                inner = node.slice
+                if isinstance(inner, ast.Tuple):
+                    # if any elt is int/float/str, pick that (still conservative)
+                    mapped = [classify(e) for e in inner.elts]
+                    for pref in (TYPE_INT, TYPE_FLOAT, TYPE_STRING):
+                        if pref in mapped:
+                            return pref
+        return TYPE_DONT
+
+    try:
+        return classify(ann)
+    except Exception:
+        return TYPE_DONT
+
 
 if __name__ == "__main__":
     sys.exit(main())
