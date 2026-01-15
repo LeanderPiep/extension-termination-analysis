@@ -8,6 +8,8 @@ TYPE_DONT = "Dont Specify"
 TYPE_INT = "Integer"
 TYPE_FLOAT = "Float"
 TYPE_STRING = "String"
+TYPE_BOOL = "Boolean"
+TYPE_BOOL = "Boolean"
 
 def main():
     a = parse_args()
@@ -145,6 +147,8 @@ def _map_annotation_to_ui_type(ann: Optional[ast.AST]) -> str:
             return TYPE_FLOAT
         if is_named(node, "str"):
             return TYPE_STRING
+        if is_named(node, "bool"):
+            return TYPE_BOOL
 
         # Optional[T], Annotated[T, ...], Union[T, None]
         if isinstance(node, ast.Subscript):
@@ -161,7 +165,7 @@ def _map_annotation_to_ui_type(ann: Optional[ast.AST]) -> str:
                 if isinstance(inner, ast.Tuple):
                     # if any elt is int/float/str, pick that (still conservative)
                     mapped = [classify(e) for e in inner.elts]
-                    for pref in (TYPE_INT, TYPE_FLOAT, TYPE_STRING):
+                    for pref in (TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_BOOL):
                         if pref in mapped:
                             return pref
         return TYPE_DONT

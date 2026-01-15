@@ -46,7 +46,7 @@
     return;
   }
 
-  const TYPE_OPTIONS = ["Dont Specify", "Integer", "Float", "String"];
+  const TYPE_OPTIONS = ["Dont Specify", "Integer", "Float", "String", "Boolean"];
 
   function renderParams() {
   paramsContainer.innerHTML = "";
@@ -96,6 +96,31 @@
         inputsEl.appendChild(valEl);
         return;
       }
+
+      if (t === "Boolean") {
+        const boolSelect = document.createElement("select");
+        boolSelect.className = "bool-select";
+        boolSelect.dataset.param = name;
+        boolSelect.dataset.kind = "bool";
+
+        const optTrue = document.createElement("option");
+        optTrue.value = "true";
+        optTrue.textContent = "true";
+
+        const optFalse = document.createElement("option");
+        optFalse.value = "false";
+        optFalse.textContent = "false";
+
+        boolSelect.appendChild(optTrue);
+        boolSelect.appendChild(optFalse);
+
+        // default: true (oder false, wie du willst)
+        boolSelect.value = "true";
+
+        inputsEl.appendChild(boolSelect);
+        return;
+      }
+
 
       // Integer / Float => range
       const fromEl = document.createElement("input");
@@ -163,6 +188,13 @@
       const el = paramsContainer.querySelector(`input[data-param="${param}"][data-kind="value"]`);
       const v = el ? el.value.trim() : "";
       out[param] = { type: t, value: v === "" ? null : v };
+      continue;
+    }
+
+    if (t === "Boolean") {
+      const el = paramsContainer.querySelector(`select[data-param="${param}"][data-kind="bool"]`);
+      const v = el ? el.value : "false";
+      out[param] = { type: t, value: v === "true" };
       continue;
     }
 

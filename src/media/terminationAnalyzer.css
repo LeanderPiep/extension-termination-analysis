@@ -328,3 +328,19 @@ input[type="checkbox"] {
   border-color: var(--vscode-focusBorder);
 }
 
+.bool-select {
+  width: 80px;
+  padding: 6px 8px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--vscode-input-border, #666);
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  outline: none;
+}
+
+.bool-select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+
