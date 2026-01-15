@@ -252,16 +252,13 @@ checkbox.addEventListener("change", () => {
     if (!msg || typeof msg.type !== "string") return;
 
     if (msg.type === "contextResult") {
-      // restore button
-      startBtn.disabled = false;
-      startBtn.textContent = "Start";
-
       if (!msg.ok) {
+        startBtn.disabled = false;
+        startBtn.textContent = "Start";
         const err = msg.error ?? "Unknown error";
         if (contextOutput) contextOutput.value = `ERROR: ${err}`;
         return;
       }
-
       if (contextOutput) contextOutput.value = msg.context ?? "";
     }
 

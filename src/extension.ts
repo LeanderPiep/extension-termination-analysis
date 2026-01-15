@@ -26,28 +26,43 @@ function runAstProbe(extensionPath: string, filePath: string, line1Based: number
   });
 }
 
-function runContextOrchestrator(
+function runOrchestrator(
   extensionPath: string,
-  mode: string,
+  contextMode: string,
+  analysisModel: string,
   functionName: string,
-  filePath: string
+  filePath: string,
+  inputs: any
 ): Promise<any> {
   return new Promise((resolve, reject) => {
-    const scriptPath = path.join(
-      extensionPath,
-      "src",
-      "backend",
-      "context extraction",
-      "orchestrator.py"
-    );
+    const scriptPath = path.join(extensionPath, "src", "backend", "orchestrator.py");
+
+    const inputsJson = inputs ? JSON.stringify(inputs) : "null";
 
     execFile(
       "python",
-      [scriptPath, "--mode", mode, "--function", functionName, "--file", filePath],
+      [
+        scriptPath,
+        "--mode",
+        contextMode,
+        "--analysis-model",
+        analysisModel,
+        "--function",
+        functionName,
+        "--file",
+        filePath,
+        "--inputs-json",
+        inputsJson,
+      ],
       { maxBuffer: 30 * 1024 * 1024 },
       (err, stdout, stderr) => {
+        // Helpful for your new parameter summary log
+        if (stderr && stderr.trim().length > 0) {
+          console.log("[orchestrator stderr]", stderr);
+        }
+
         if (err) {
-          reject(new Error(`Context orchestrator failed: ${err.message}\n${stderr}`));
+          reject(new Error(`Orchestrator failed: ${err.message}\n${stderr}`));
           return;
         }
         try {
@@ -59,6 +74,7 @@ function runContextOrchestrator(
     );
   });
 }
+
 
 function escapeHtml(s: string): string {
   return s
@@ -151,17 +167,23 @@ export function activate(context: vscode.ExtensionContext) {
         if (!msg || typeof msg.type !== "string") return;
 
         if (msg.type === "start") {
-          const mode = String(msg.settings?.contextExtraction ?? "ast");
+          const contextMode = String(msg.settings?.contextExtraction ?? "ast");
+          const analysisModel = String(msg.settings?.terminationAnalysis ?? "gpt-5.2");
+          const inputs = msg.settings?.inputs ?? null;
 
           try {
-            // Run python orchestrator
-            const ctxRes = await runContextOrchestrator(context.extensionPath, mode, fnName, filePath);
+            const res = await runOrchestrator(context.extensionPath, contextMode, analysisModel, fnName, filePath, inputs);
 
-            if (!ctxRes.ok) {
+            if (!res.ok) {
               panel.webview.postMessage({
                 type: "contextResult",
                 ok: false,
-                error: ctxRes.error ?? "Context extraction failed",
+                error: res.error ?? "Run failed",
+              });
+              panel.webview.postMessage({
+                type: "analysisResult",
+                ok: false,
+                error: res.error ?? "Run failed",
               });
               return;
             }
@@ -169,8 +191,15 @@ export function activate(context: vscode.ExtensionContext) {
             panel.webview.postMessage({
               type: "contextResult",
               ok: true,
-              context: ctxRes.context ?? "",
-              meta: ctxRes.meta ?? {},
+              context: res.context ?? "",
+              meta: res.meta ?? {},
+            });
+
+            panel.webview.postMessage({
+              type: "analysisResult",
+              ok: true,
+              analysis: res.analysis ?? "",
+              meta: res.meta ?? {},
             });
           } catch (e: any) {
             panel.webview.postMessage({
@@ -178,8 +207,14 @@ export function activate(context: vscode.ExtensionContext) {
               ok: false,
               error: e?.message ?? String(e),
             });
+            panel.webview.postMessage({
+              type: "analysisResult",
+              ok: false,
+              error: e?.message ?? String(e),
+            });
           }
         }
+
       });
     })
   );
