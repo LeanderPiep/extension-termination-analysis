@@ -3,6 +3,7 @@ import { execFile } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
 
+// starts ast_function_identification
 function runAstProbe(extensionPath: string, filePath: string, line1Based: number): Promise<any> {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(extensionPath, "src", "backend", "ast_function_identification.py");
@@ -43,9 +44,9 @@ function runOrchestrator(
       "python",
       [
         scriptPath,
-        "--mode",
+        "--context-backend",
         contextMode,
-        "--analysis-model",
+        "--analysis-backend",
         analysisModel,
         "--function",
         functionName,
@@ -56,7 +57,7 @@ function runOrchestrator(
       ],
       { maxBuffer: 30 * 1024 * 1024 },
       (err, stdout, stderr) => {
-        // Helpful for your new parameter summary log
+        // log
         if (stderr && stderr.trim().length > 0) {
           console.log("[orchestrator stderr]", stderr);
         }
@@ -75,22 +76,11 @@ function runOrchestrator(
   });
 }
 
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
 function getWebviewContent(
   context: vscode.ExtensionContext,
   panel: vscode.WebviewPanel,
   functionName: string,
-  paramNames: string[],
-  paramTypes: Record<string, string>
+  paramSpecs: Record<string, string>
 ): string {
   const webview = panel.webview;
 
@@ -108,16 +98,14 @@ function getWebviewContent(
   html = html.replaceAll("{{CSP_SOURCE}}", webview.cspSource);
   html = html.replaceAll("{{CSS_URI}}", cssUri.toString());
   html = html.replaceAll("{{JS_URI}}", jsUri.toString());
-  html = html.replaceAll("{{FUNCTION_NAME}}", escapeHtml(functionName));
+  html = html.replaceAll("{{FUNCTION_NAME}}", functionName);
 
-  const paramsJson = JSON.stringify(paramNames).replace(/</g, "\\u003c");
-  html = html.replaceAll("{{PARAMS_JSON}}", paramsJson);
-
-  const paramTypesJson = JSON.stringify(paramTypes).replace(/</g, "\\u003c");
-  html = html.replaceAll("{{PARAM_TYPES_JSON}}", paramTypesJson);
+  const paramSpecsJson = JSON.stringify(paramSpecs).replace(/</g, "\\u003c");
+  html = html.replaceAll("{{PARAM_SPECS_JSON}}", paramSpecsJson);
 
   return html;
 }
+
 
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
@@ -147,8 +135,7 @@ export function activate(context: vscode.ExtensionContext) {
       }
 
       const fnName: string = result.function.name;
-      const paramTypes: Record<string, string> = result.function.params ?? {};
-      const paramNames: string[] = Object.keys(paramTypes);
+      const paramSpecs: Record<string, string> = result.function.params ?? {};
 
       const panel = vscode.window.createWebviewPanel(
         "terminationAnalyzer",
@@ -160,15 +147,15 @@ export function activate(context: vscode.ExtensionContext) {
         }
       );
 
-      panel.webview.html = getWebviewContent(context, panel, fnName, paramNames, paramTypes);
+      panel.webview.html = getWebviewContent(context, panel, fnName, paramSpecs);
 
-      // ✅ Listen for messages from the webview (Start button, etc.)
+      // listen for "start" message from webview 
       panel.webview.onDidReceiveMessage(async (msg) => {
         if (!msg || typeof msg.type !== "string") return;
 
         if (msg.type === "start") {
           const contextMode = String(msg.settings?.contextExtraction ?? "ast");
-          const analysisModel = String(msg.settings?.terminationAnalysis ?? "gpt-5.2");
+          const analysisModel = String(msg.settings?.terminationAnalysis ?? "codellama-13b");
           const inputs = msg.settings?.inputs ?? null;
 
           try {

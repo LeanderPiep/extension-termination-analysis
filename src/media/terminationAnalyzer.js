@@ -4,24 +4,16 @@
   // VS Code webview API
   const vscode = acquireVsCodeApi();
 
-  let paramNames = [];
+  let paramSpecs = {};
   try {
-    const raw = root?.dataset?.params ?? "[]";
-    paramNames = JSON.parse(raw);
+    const raw = root?.dataset?.paramSpecs ?? "{}";
+    paramSpecs = JSON.parse(raw);
   } catch (e) {
-    console.error("Failed to parse data-params JSON", e);
-    paramNames = [];
+    console.error("Failed to parse data-param-specs JSON", e);
+    paramSpecs = {};
   }
 
-    let paramTypes = {};
-    try {
-      const rawTypes = root?.dataset?.paramTypes ?? "{}";
-      paramTypes = JSON.parse(rawTypes);
-    } catch (e) {
-      console.error("Failed to parse data-param-types JSON", e);
-      paramTypes = {};
-    }
-
+  const paramNames = Object.keys(paramSpecs); 
 
   const checkbox = document.getElementById("specifyInputs");
   const inputsSection = document.getElementById("inputsSection");
@@ -67,7 +59,7 @@
       typeSelect.appendChild(o);
     }
 
-    const defaultType = paramTypes?.[name] ?? "Dont Specify";
+    const defaultType = paramSpecs?.[name] ?? "Dont Specify";
     typeSelect.value = TYPE_OPTIONS.includes(defaultType) ? defaultType : "Dont Specify";
 
     const nameEl = document.createElement("div");
@@ -232,7 +224,7 @@ checkbox.addEventListener("change", () => {
       contextExtraction: contextExtraction.value,
       terminationAnalysis: terminationModel.value,
       specifyInputs: checkbox.checked,
-      paramTypes: checkbox.checked ? collectParamTypes() : null,
+      paramSpecs: checkbox.checked ? collectParamTypes() : null,
       inputs: checkbox.checked ? collectInputs() : null,
     };
 
