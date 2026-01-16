@@ -9,7 +9,6 @@ TYPE_INT = "Integer"
 TYPE_FLOAT = "Float"
 TYPE_STRING = "String"
 TYPE_BOOL = "Boolean"
-TYPE_BOOL = "Boolean"
 
 def main():
     a = parse_args()
@@ -43,7 +42,7 @@ def main():
     print(json.dumps(out))
     return 0
     
-# G´get file and line where use clicked
+# get file and line where user clicked
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--file", required=True)
@@ -91,89 +90,28 @@ def span_len(n: ast.AST) -> int:
 
 # get function parameters
 def extract_param_type_defaults(fn: ast.AST) -> Dict[str, str]:
-    a = fn.args
-    params: List[ast.arg] = []
-    params += list(getattr(a, "posonlyargs", []))
-    params += list(a.args)
-    params += list(a.kwonlyargs)
-
-    out: Dict[str, str] = {}
-    for p in params:
-        out[p.arg] = _map_annotation_to_ui_type(p.annotation)
-    return out
+    return {
+        p.arg: _map_annotation_to_ui_type(p.annotation)
+        for p in fn.args.args
+    }
 
 def _map_annotation_to_ui_type(ann: Optional[ast.AST]) -> str:
     if ann is None:
         return TYPE_DONT
 
-    # Try to unparse; if that fails, fall back
-    try:
-        s = ast.unparse(ann)
-    except Exception:
-        return TYPE_DONT
-
-    # Normalize a bit
-    t = s.strip()
-
-    # Handle quoted forward refs: "int"
-    if (t.startswith("'") and t.endswith("'")) or (t.startswith('"') and t.endswith('"')):
-        t = t[1:-1].strip()
-
-    # Very conservative mapping: only obvious ones
-    # Accept builtins and common typing wrappers
-    # Examples: int, Optional[int], Union[int, None], Annotated[int, ...]
-    if "int" == t or t.endswith("[int]") or "int," in t or t.endswith("(int)"):
-        # this is too broad; better do structured parsing below
-        pass
-
-    # Better: check AST shape instead of string contains
-    # We'll match: Name(id="int"/"float"/"str") and Subscript(base=Name("Optional"/"Annotated"/"Union"), ...)
-    def base_name(node: ast.AST) -> Optional[str]:
-        if isinstance(node, ast.Name):
-            return node.id
-        if isinstance(node, ast.Attribute):
-            # typing.Optional etc.
-            return node.attr
-        return None
-
-    def is_named(node: ast.AST, name: str) -> bool:
-        return base_name(node) == name
-
-    def classify(node: ast.AST) -> str:
-        # direct: int/float/str
-        if is_named(node, "int"):
+     # only accept builtins
+    if isinstance(ann, ast.Name):
+        if ann.id == "int":
             return TYPE_INT
-        if is_named(node, "float"):
+        if ann.id == "float":
             return TYPE_FLOAT
-        if is_named(node, "str"):
+        if ann.id == "str":
             return TYPE_STRING
-        if is_named(node, "bool"):
+        if ann.id == "bool":
             return TYPE_BOOL
-
-        # Optional[T], Annotated[T, ...], Union[T, None]
-        if isinstance(node, ast.Subscript):
-            bn = base_name(node.value)
-            if bn in {"Optional", "Annotated"}:
-                inner = node.slice
-                # slice can be Tuple or single
-                if isinstance(inner, ast.Tuple) and inner.elts:
-                    return classify(inner.elts[0])
-                return classify(inner)
-
-            if bn == "Union":
-                inner = node.slice
-                if isinstance(inner, ast.Tuple):
-                    # if any elt is int/float/str, pick that (still conservative)
-                    mapped = [classify(e) for e in inner.elts]
-                    for pref in (TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_BOOL):
-                        if pref in mapped:
-                            return pref
         return TYPE_DONT
 
-    try:
-        return classify(ann)
-    except Exception:
-        return TYPE_DONT
+    return TYPE_DONT
 
 
 if __name__ == "__main__":
