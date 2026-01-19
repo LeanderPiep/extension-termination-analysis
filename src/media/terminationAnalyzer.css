@@ -1,3 +1,5 @@
+/* base + reset */
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   padding: 16px;
@@ -11,7 +13,8 @@ body {
   box-sizing: inherit;
 }
 
-/* Centered column layout */
+/* layout */
+
 .container {
   max-width: 480px;
   margin: 0 auto;
@@ -28,7 +31,8 @@ h1 {
   font-weight: 700;
 }
 
-/* Function label + name */
+/* function header */
+
 .fn-line {
   width: 100%;
   display: flex;
@@ -49,7 +53,8 @@ h1 {
   color: #dcdcaa;
 }
 
-/* Settings container */
+/* settings card */
+
 .settings {
   width: 100%;
   margin-top: 6px;
@@ -69,7 +74,8 @@ h1 {
   text-align: center;
 }
 
-/* Form field rows (label + select) */
+/* settings fields */
+
 .field {
   width: 100%;
   display: grid;
@@ -84,7 +90,8 @@ h1 {
   user-select: none;
 }
 
-/* Dropdown styling */
+/* shared select styling */
+
 .select {
   width: 100%;
   padding: 6px 8px;
@@ -100,7 +107,8 @@ h1 {
   border-color: var(--vscode-focusBorder);
 }
 
-/* Specify Inputs row */
+/* specify inputs toggle row */
+
 .setting-row {
   width: 100%;
   display: flex;
@@ -115,7 +123,12 @@ h1 {
   user-select: none;
 }
 
-/* Inputs section */
+input[type="checkbox"] {
+  transform: translateY(1px);
+}
+
+/* inputs section */
+
 .inputs {
   width: 100%;
   margin-top: 12px;
@@ -133,6 +146,8 @@ h1 {
   display: none;
 }
 
+/* params list */
+
 #paramsContainer {
   display: flex;
   flex-direction: column;
@@ -140,6 +155,7 @@ h1 {
   width: 100%;
 }
 
+/* one param row: type | name | inputs */
 .param {
   width: 100%;
   display: grid;
@@ -149,19 +165,18 @@ h1 {
   margin: 6px 0;
 }
 
-
+/* parameter name label */
 .param-name {
   width: 100%;
   text-align: left;
-
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-weight: 600;
-
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* parameter type dropdown */
 .param-type {
   width: 100%;
   padding: 6px 8px;
@@ -173,6 +188,11 @@ h1 {
   outline: none;
 }
 
+.param-type:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+/* inputs area for one param (from/to or single value) */
 .param-inputs {
   display: grid;
   grid-template-columns: 80px 80px;
@@ -180,27 +200,9 @@ h1 {
   align-items: center;
 }
 
-.param-type:focus {
-  border-color: var(--vscode-focusBorder);
-}
+/* shared input styles */
 
-/* Number inputs */
-input[type="number"] {
-  width: 80px;
-  padding: 4px 6px;
-  font-size: 14px;
-  border-radius: 6px;
-  border: 1px solid var(--vscode-input-border, #666);
-  color: var(--vscode-input-foreground);
-  background: var(--vscode-input-background);
-  outline: none;
-}
-
-input[type="number"]:focus {
-  border-color: var(--vscode-focusBorder);
-}
-
-/* String inputs */
+input[type="number"],
 input[type="text"] {
   width: 80px;
   padding: 4px 6px;
@@ -212,17 +214,30 @@ input[type="text"] {
   outline: none;
 }
 
+input[type="number"]:focus,
 input[type="text"]:focus {
   border-color: var(--vscode-focusBorder);
 }
 
+/* boolean value dropdown */
 
-/* Checkbox */
-input[type="checkbox"] {
-  transform: translateY(1px);
+.bool-select {
+  width: 80px;
+  padding: 6px 8px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--vscode-input-border, #666);
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  outline: none;
 }
 
-/* Actions (Start button) */
+.bool-select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+/* actions */
+
 .actions {
   width: 100%;
   display: flex;
@@ -249,42 +264,8 @@ input[type="checkbox"] {
   transform: translateY(1px);
 }
 
-/* Responsive */
-@media (max-width: 520px) {
-  .fn-line {
-    flex-direction: column;
-    gap: 2px;
-    align-items: center;
-  }
+/* output */
 
-  .field {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-
-  .actions {
-    justify-content: center;
-  }
-
-  .param {
-    width: 100%;
-    grid-template-columns: 1fr;
-    row-gap: 6px;
-  }
-
-  .param-name {
-    position: static;
-    width: auto;
-    text-align: left;
-    margin-right: 0;
-  }
-
-  input[type="number"] {
-    width: 100%;
-  }
-}
-
-/* Output (Context + Analysis) */
 .output {
   width: 100%;
   display: flex;
@@ -310,16 +291,13 @@ input[type="checkbox"] {
   width: 100%;
   min-height: 360px;
   resize: vertical;
-
   padding: 10px;
   font-size: 14px;
   line-height: 1.45;
-
   border-radius: 8px;
   border: 1px solid var(--vscode-input-border, #666);
   background: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
-
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
@@ -328,19 +306,35 @@ input[type="checkbox"] {
   border-color: var(--vscode-focusBorder);
 }
 
-.bool-select {
-  width: 80px;
-  padding: 6px 8px;
-  font-size: 14px;
-  border-radius: 8px;
-  border: 1px solid var(--vscode-input-border, #666);
-  color: var(--vscode-input-foreground);
-  background: var(--vscode-input-background);
-  outline: none;
+/* responsive */
+
+@media (max-width: 520px) {
+  .fn-line {
+    flex-direction: column;
+    gap: 2px;
+    align-items: center;
+  }
+
+  .field {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .actions {
+    justify-content: center;
+  }
+
+  .param {
+    grid-template-columns: 1fr;
+    row-gap: 6px;
+  }
+
+  .param-name {
+    width: auto;
+  }
+
+  input[type="number"],
+  input[type="text"] {
+    width: 100%;
+  }
 }
-
-.bool-select:focus {
-  border-color: var(--vscode-focusBorder);
-}
-
-
