@@ -66,7 +66,7 @@
     nameEl.className = "param-name";
     nameEl.textContent = name;
 
-    // container for the inputs (so we can rerender per selection)
+    // container for inputs 
     const inputsEl = document.createElement("div");
     inputsEl.className = "param-inputs";
     inputsEl.dataset.param = name;
@@ -75,7 +75,6 @@
       inputsEl.innerHTML = "";
 
       if (t === "Dont Specify") {
-        // no inputs
         return;
       }
 
@@ -106,7 +105,6 @@
         boolSelect.appendChild(optTrue);
         boolSelect.appendChild(optFalse);
 
-        // default: true (oder false, wie du willst)
         boolSelect.value = "true";
 
         inputsEl.appendChild(boolSelect);
@@ -114,7 +112,7 @@
       }
 
 
-      // Integer / Float => range
+      // integer / float range
       const fromEl = document.createElement("input");
       fromEl.type = "number";
       fromEl.placeholder = "from";
@@ -149,7 +147,6 @@
   }
 }
 
-
   function collectParamTypes() {
     const out = {};
     const selects = paramsContainer.querySelectorAll("select.param-type");
@@ -165,7 +162,7 @@
 
 
   function collectInputs() {
-  const out = {}; // param -> { type, from/to OR value } OR null
+  const out = {};
 
   // read current types
   const selectedTypes = collectParamTypes();
@@ -190,7 +187,7 @@
       continue;
     }
 
-    // Integer / Float
+    // integer / float
     const fromEl = paramsContainer.querySelector(`input[data-param="${param}"][data-kind="from"]`);
     const toEl = paramsContainer.querySelector(`input[data-param="${param}"][data-kind="to"]`);
 
@@ -218,7 +215,7 @@ checkbox.addEventListener("change", () => {
   }
 });
 
-  // ✅ Start button -> send message to extension
+  // start button -> send message to extension
   startBtn.addEventListener("click", () => {
     const settings = {
       contextExtraction: contextExtraction.value,
@@ -228,7 +225,7 @@ checkbox.addEventListener("change", () => {
       inputs: checkbox.checked ? collectInputs() : null,
     };
 
-    // Optional UX: show loading state
+    // show loading state
     startBtn.disabled = true;
     startBtn.textContent = "Running...";
 
@@ -238,7 +235,7 @@ checkbox.addEventListener("change", () => {
     vscode.postMessage({ type: "start", settings });
   });
 
-  // ✅ Receive results from extension
+  // receive results from extension
   window.addEventListener("message", (event) => {
     const msg = event.data;
     if (!msg || typeof msg.type !== "string") return;
@@ -254,7 +251,6 @@ checkbox.addEventListener("change", () => {
       if (contextOutput) contextOutput.value = msg.context ?? "";
     }
 
-    // later: analysisResult, etc.
     if (msg.type === "analysisResult") {
       startBtn.disabled = false;
       startBtn.textContent = "Start";
