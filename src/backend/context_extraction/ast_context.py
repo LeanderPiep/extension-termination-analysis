@@ -1,17 +1,7 @@
 import ast
 from typing import Dict, List, Optional, Set, Tuple
 
-
 class FunctionAnalyzer(ast.NodeVisitor):
-    """
-    Extracts:
-    - helper function dependencies (direct + transitive)
-    - referenced global variables
-    Then builds a context string consisting of:
-    - relevant global assignments (in file order)
-    - relevant helper functions (topologically-ish ordered)
-    - plus the main function source at the end
-    """
 
     def __init__(self, tree: ast.AST):
         self.tree = tree
@@ -22,35 +12,40 @@ class FunctionAnalyzer(ast.NodeVisitor):
         global_variables: Dict[str, ast.AST] = {}
 
         for node in getattr(self.tree, "body", []):
-            # x = 5  (possibly multiple targets)
+            # normal assignment (e.g. x = 5 | can have multiple targets e.g. a = b = c = 5)
             if isinstance(node, ast.Assign):
                 for target in node.targets:
                     if isinstance(target, ast.Name):
                         global_variables[target.id] = node
 
-            # x: int = 5  (exactly one target)
+            # annotated assignment (x: int = 5 | exactly one target)
             elif isinstance(node, ast.AnnAssign):
                 if isinstance(node.target, ast.Name):
                     global_variables[node.target.id] = node
 
         return global_variables
 
-    def _get_function_defs(self) -> Dict[str, ast.FunctionDef]:
-        functions: Dict[str, ast.FunctionDef] = {}
-        for node in getattr(self.tree, "body", []):
-            if isinstance(node, ast.FunctionDef):
+    # collect all FunctionDef / AsyncFunctionDef
+    def _get_function_defs(self) -> Dict[str, ast.AST]:
+
+        functions: Dict[str, ast.AST] = {}
+        duplicates: Set[str] = set()
+
+        for node in ast.walk(self.tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if node.name in functions:
+                    duplicates.add(node.name)
                 functions[node.name] = node
+
+        if duplicates:
+            raise ValueError(
+                f"Duplicate function names found (must be unique): {sorted(duplicates)}"
+            )
+
         return functions
 
+    # finds all function & global variables called by fn
     def analyze_function(self, fn_name: str, visited: Optional[Set[str]] = None) -> Dict[str, Set[str]]:
-        """
-        Returns dict:
-          {
-            "functions": {helperFn1, helperFn2, ...},
-            "globals": {g1, g2, ...}
-          }
-        Includes transitive helper function dependencies.
-        """
         if visited is None:
             visited = set()
         if fn_name in visited:
@@ -65,16 +60,17 @@ class FunctionAnalyzer(ast.NodeVisitor):
         local_used_globals: Set[str] = set()
 
         for child in ast.walk(node):
-            # function calls: foo(...)
+            # function calls
             if isinstance(child, ast.Call) and isinstance(child.func, ast.Name):
                 called = child.func.id
                 if called in self.function_defs:
                     local_called_functions.add(called)
 
-            # global variable usage: x
+            # usage of global variables
             if isinstance(child, ast.Name) and child.id in self.global_vars:
                 local_used_globals.add(child.id)
 
+        # recursively investigate further functional dependencies
         all_functions = set(local_called_functions)
         all_globals = set(local_used_globals)
 
@@ -87,7 +83,7 @@ class FunctionAnalyzer(ast.NodeVisitor):
 
     def _node_source(self, source_code: str, node: ast.AST) -> str:
         seg = ast.get_source_segment(source_code, node)
-        # Fallback: should rarely happen, but keep it safe.
+
         if seg is None:
             return ""
         return seg
@@ -98,17 +94,16 @@ class FunctionAnalyzer(ast.NodeVisitor):
             return ""
         return self._node_source(source_code, fn_node)
 
+    # creates a context string containing relevant global variables and relevant helper functions
     def create_context(self, fn_name: str, source_code: str) -> str:
-        """
-        Context = relevant globals + relevant helper fns + main fn source.
-        """
+
         analysis = self.analyze_function(fn_name)
         relevant_functions = analysis["functions"]
         relevant_globals = analysis["globals"]
 
         context_parts: List[str] = []
 
-        # 1) global variables (in file order)
+        # global variables (sort as in code)
         sorted_globals = sorted(
             ((var, node) for var, node in self.global_vars.items() if var in relevant_globals),
             key=lambda x: getattr(x[1], "lineno", 10**9),
@@ -118,7 +113,7 @@ class FunctionAnalyzer(ast.NodeVisitor):
             if seg.strip():
                 context_parts.append(seg)
 
-        # 2) helper functions in dependency order (DFS postorder)
+        # helper functions (sort by minimum dependencies)
         visited: Set[str] = set()
         ordered_functions: List[str] = []
 
@@ -169,6 +164,6 @@ def create_context(function_name: str, source_code: str) -> str:
     analyzer = FunctionAnalyzer(tree)
 
     if function_name not in analyzer.function_defs:
-        raise ValueError(f"Function '{function_name}' not found at top-level.")
+        raise ValueError(f"Function '{function_name}' not found.")
 
     return analyzer.create_context(function_name, source_code)
