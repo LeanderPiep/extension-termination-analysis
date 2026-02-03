@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import re
 from urllib import request
@@ -25,10 +27,25 @@ def _ollama_generate(prompt: str, url: str = DEFAULT_OLLAMA_URL) -> str:
         headers={"Content-Type": "application/json"},
     )
 
-    with request.urlopen(req, timeout=120) as response:
+    with request.urlopen(req, timeout=180) as response:
         raw = json.loads(response.read()).get("response", "")
 
     return raw.replace("\\n", "\n").strip()
+
+
+def _sanitize_code_output(text: str) -> str:
+    """
+    Best-effort cleanup if the model returns fenced code blocks.
+    """
+    if not text:
+        return ""
+    t = text.strip()
+
+    # Remove ```python ... ``` or ``` ... ``` if they wrap the whole output
+    t = re.sub(r"^\s*```(?:python)?\s*\n?", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"\n?\s*```\s*$", "", t)
+
+    return t.strip()
 
 
 def _extract_json_from_text(s: str) -> str:
@@ -39,13 +56,16 @@ def _extract_json_from_text(s: str) -> str:
     """
     text = s.strip()
 
+    # Strip code fences if present
     if "```" in text:
         parts = text.split("```")
         if len(parts) >= 3:
             candidate = parts[1]
+            # remove possible language line like "json" / "python"
             candidate = re.sub(r"^\s*[a-zA-Z0-9_+-]+\s*\n", "", candidate)
             text = candidate.strip()
 
+    # Find first '{' or '['
     start_candidates = []
     for ch in ("{", "["):
         idx = text.find(ch)
@@ -56,11 +76,12 @@ def _extract_json_from_text(s: str) -> str:
 
     start = min(start_candidates)
 
+    # Try raw_decode from each possible '{'/'[' from earliest start onwards
     for i in range(start, len(text)):
         if text[i] not in "{[":
             continue
         try:
-            obj, end = json.JSONDecoder().raw_decode(text[i:])
+            _, end = json.JSONDecoder().raw_decode(text[i:])
             return text[i : i + end]
         except Exception:
             continue
@@ -86,11 +107,16 @@ def _parse_json_array_of_strings(s: str, what: str, key: str | None = None) -> L
     if isinstance(obj, dict):
         if key is None:
             # If no key specified, try to find the first list[str] value
-            list_candidates = [v for v in obj.values() if isinstance(v, list) and all(isinstance(x, str) for x in v)]
+            list_candidates = [
+                v for v in obj.values()
+                if isinstance(v, list) and all(isinstance(x, str) for x in v)
+            ]
             if len(list_candidates) == 1:
                 obj = list_candidates[0]
             else:
-                raise ValueError(f"{what}: Expected JSON array of strings or JSON object containing one list[str].\nRaw:\n{s}")
+                raise ValueError(
+                    f"{what}: Expected JSON array of strings or JSON object containing one list[str].\nRaw:\n{s}"
+                )
         else:
             if key not in obj:
                 raise ValueError(f"{what}: JSON object missing key '{key}'.\nRaw:\n{s}")
@@ -102,6 +128,10 @@ def _parse_json_array_of_strings(s: str, what: str, key: str | None = None) -> L
     return [x.strip() for x in obj if x.strip()]
 
 
+# =========================
+# NEW PIPELINE (PROMPTS UNCHANGED)
+# =========================
+
 def find_called_functions_names(full_code: str, target_fn: str, url: str = DEFAULT_OLLAMA_URL) -> List[str]:
     prompt = f"""You are a deterministic Python code extractor.
 
@@ -109,44 +139,31 @@ def find_called_functions_names(full_code: str, target_fn: str, url: str = DEFAU
     {full_code}
 
     Task:
+    Determine the set of functions that are directly or indirectly called by the target function.
+
     - Return ONLY a JSON object with this exact schema: "called_functions": ["..."]
     - Include {target_fn}.
     - Include only functions that are directly or indirectly called by {target_fn}.
 
-    Rules:
-    - Use function names exactly as defined.
+    Output requirements:
+    - Return ONLY a JSON object with this exact schema: "called_functions": ["..."]
+    - The list MUST include the target function itself.
+    - Use function names exactly as defined in the source code.
     - Output ONLY JSON. No markdown, no code fences, no extra text.
     """
     raw = _ollama_generate(prompt, url=url)
+    # Robustly accept {"called_functions":[...]} or plain [...]
     return _parse_json_array_of_strings(raw, "find_called_functions_names", key="called_functions")
 
 
-def find_all_global_variables(full_code: str, url: str = DEFAULT_OLLAMA_URL) -> List[str]:
-    prompt = f"""You are a deterministic Python code extractor.
-
-    Full source code:
-    {full_code}
-
-    Task:
-    - Return ONLY a JSON object with this exact schema: "all_variables": ["..."]
-    - Identify all global variables that are defined in the 'Full source code'.
-
-    Rules:
-    - Use variable names exactly as defined.
-    - Output ONLY JSON. No markdown, no code fences, no extra text.
-    """
-    raw = _ollama_generate(prompt, url=url)
-    return _parse_json_array_of_strings(raw, "find_all_global_variables", key="all_variables")
-
-
-def summarize_called_functions(full_code: str, called_functions: List[str], url: str = DEFAULT_OLLAMA_URL) -> str:
+def summarize_called_functions(full_code: str, called_functions: str, url: str = DEFAULT_OLLAMA_URL) -> str:
     prompt = f"""You are a deterministic Python code extractor.
 
     Full source code:
     {full_code}
 
     Relevant Functions:
-    {json.dumps(called_functions)}
+    {called_functions}
 
     Task:
     - Extract ONLY the function definitions whose names are in "Relevant function names"
@@ -160,9 +177,10 @@ def summarize_called_functions(full_code: str, called_functions: List[str], url:
 
     Output format constraint:
     - The first non-whitespace characters of your output MUST be 'def' or 'async def'.
-    - If you cannot comply exactly, output ONLY this single word: ERROR
+    - Do NOT include ```python blocks
     """
-    return _ollama_generate(prompt, url=url)
+    raw = _ollama_generate(prompt, url=url)
+    return _sanitize_code_output(raw)
 
 
 def topologically_sort_functions(called_functions_summary: str, url: str = DEFAULT_OLLAMA_URL) -> str:
@@ -179,25 +197,21 @@ def topologically_sort_functions(called_functions_summary: str, url: str = DEFAU
 
     Rules:
     - Output ONLY Python code. No markdown. No backticks. No explanations. No comments.
-    - Do NOT include any functions that are not in the input.
-    - Preserve indentation and line breaks.
+    - Preserve the original indentation and line breaks exactly.
+    - Do NOT include ```python blocks
     """
-    return _ollama_generate(prompt, url=url)
+    raw = _ollama_generate(prompt, url=url)
+    return _sanitize_code_output(raw)
 
 
-def find_all_variable_dependencies(
-    called_functions_summary: str, global_variables: List[str], url: str = DEFAULT_OLLAMA_URL
-) -> List[str]:
+def find_all_variable_dependencies(called_functions_summary: str, url: str = DEFAULT_OLLAMA_URL) -> List[str]:
     prompt = f"""You are a deterministic Python code extractor.
 
-    Global Variables:
-    {json.dumps(global_variables)}
+    Task:
+    Identify all global variables that are being used in the given source code. A global variable is a variable that is being used in the code but not defined within a function.
 
     Full source code:
     {called_functions_summary}
-
-    Task:
-    - Look at every function in 'Sourcecode' and identify the variables that are being used, that are also in 'Global Variables'.
 
     Rules:
     - Output ONLY a JSON array of variable names, e.g. ["var_a", "var_b"]
@@ -205,19 +219,18 @@ def find_all_variable_dependencies(
     - No explanations, no extra text.
     """
     raw = _ollama_generate(prompt, url=url)
-    return _parse_json_array_of_strings(raw, "find_all_variable_dependencies")
+    # Robustly accept plain array, or object that contains a single list[str]
+    return _parse_json_array_of_strings(raw, "find_all_variable_dependencies", key=None)
 
 
-def summarize_called_global_variables(
-    full_code: str, called_global_variables: List[str], url: str = DEFAULT_OLLAMA_URL
-) -> str:
+def summarize_called_global_variables(full_code: str, called_global_variables: str, url: str = DEFAULT_OLLAMA_URL) -> str:
     prompt = f"""You are a deterministic Python code extractor.
 
     Full source code:
     {full_code}
 
     Global Variables:
-    {json.dumps(called_global_variables)}
+    {called_global_variables}
 
     Task:
     - Identify the definitions of the variables listed in 'Global Variables' and combine them into one String.
@@ -228,19 +241,35 @@ def summarize_called_global_variables(
     - Preserve indentation and line breaks.
     - No explanations, no comments, no extra text.
     - Do not add comments, explanations, or language identifiers.
+    - Do NOT include ```python blocks
     """
-    return _ollama_generate(prompt, url=url)
+    raw = _ollama_generate(prompt, url=url)
+    return _sanitize_code_output(raw)
 
 
 def create_context(function_name: str, source_code: str, url: str = DEFAULT_OLLAMA_URL) -> str:
+    """
+    New pipeline:
+    1) called functions
+    2) extract those function definitions
+    3) topologically sort them
+    4) find global variables used inside those functions (heuristic prompt)
+    5) extract those global variable definitions
+    6) return globals + functions
+    """
     called_functions = find_called_functions_names(source_code, function_name, url=url)
-    global_variables = find_all_global_variables(source_code, url=url)
 
-    called_functions_summary = summarize_called_functions(source_code, called_functions, url=url)
+    # Keep your exact "Neu" behavior: pass whatever representation you want into prompt.
+    # Here we pass a JSON array string (robust & deterministic).
+    called_functions_json = json.dumps(called_functions)
+
+    called_functions_summary = summarize_called_functions(source_code, called_functions_json, url=url)
     called_functions_summary_sorted = topologically_sort_functions(called_functions_summary, url=url)
 
-    called_global_variables = find_all_variable_dependencies(called_functions_summary, global_variables, url=url)
-    called_global_variables_summary = summarize_called_global_variables(source_code, called_global_variables, url=url)
+    called_global_variables = find_all_variable_dependencies(called_functions_summary, url=url)
+    called_global_variables_json = json.dumps(called_global_variables)
+
+    called_global_variables_summary = summarize_called_global_variables(source_code, called_global_variables_json, url=url)
 
     parts = []
     if called_global_variables_summary.strip():

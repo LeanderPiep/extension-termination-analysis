@@ -61,6 +61,7 @@ Task:
 3. Extract ONLY:
    - the definitions of those global variables
    - the definitions of those functions
+   - the definition of the target function itself
 4. Sort the extracted functions topologically:
    - callees first
    - callers after callees
