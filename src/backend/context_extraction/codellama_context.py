@@ -39,18 +39,13 @@ def _extract_json_from_text(s: str) -> str:
     """
     text = s.strip()
 
-    # Strip common code fences
     if "```" in text:
-        # take first fenced block content if present
         parts = text.split("```")
-        # pattern: before ``` lang? \n content \n ``` after
         if len(parts) >= 3:
             candidate = parts[1]
-            # remove optional language identifier line
             candidate = re.sub(r"^\s*[a-zA-Z0-9_+-]+\s*\n", "", candidate)
             text = candidate.strip()
 
-    # Find first JSON object/array start
     start_candidates = []
     for ch in ("{", "["):
         idx = text.find(ch)
@@ -61,7 +56,6 @@ def _extract_json_from_text(s: str) -> str:
 
     start = min(start_candidates)
 
-    # Try to decode from each start position (some models prepend whitespace/text)
     for i in range(start, len(text)):
         if text[i] not in "{[":
             continue
@@ -211,7 +205,6 @@ def find_all_variable_dependencies(
     - No explanations, no extra text.
     """
     raw = _ollama_generate(prompt, url=url)
-    # This one is supposed to be a JSON array, but we tolerate object-wrapping too.
     return _parse_json_array_of_strings(raw, "find_all_variable_dependencies")
 
 
