@@ -34,12 +34,14 @@ def main() -> int:
         print(json.dumps({"ok": False, "error": f"Failed to parse inputs-json: {e}"}))
         return 0
 
-    # context setting 
+    # context setting
     try:
         if context_setting == "ast":
             from ast_context import create_context as ctx_handler
         elif context_setting == "codellama:13b":
             from codellama_context import create_context as ctx_handler
+        elif context_setting == "qwen2.5-coder:14b":
+            from qwen_context import create_context as ctx_handler
         elif context_setting == "gpt-5.2":
             from gpt_context import create_context as ctx_handler
         elif context_setting == "claude-sonnet-4-5":
@@ -72,6 +74,8 @@ def main() -> int:
             from gpt_analysis import analyze_termination as analyze
         elif analysis_setting == "codellama:13b":
             from codellama_analysis import analyze_termination as analyze
+        elif analysis_setting == "qwen2.5-coder:14b":
+            from qwen_analysis import analyze_termination as analyze
         elif analysis_setting == "claude-sonnet-4-5":
             from claude_analysis import analyze_termination as analyze
         else:
