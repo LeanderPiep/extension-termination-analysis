@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Optional
+from typing import Optional, Literal
 
 try:
     from anthropic import Anthropic
@@ -15,50 +15,77 @@ DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
 
 
 def _sanitize_text(text: str) -> str:
-    """
-    Best-effort cleanup if Claude returns fenced code blocks or extra whitespace.
-    """
     if not text:
         return ""
 
     t = text.strip()
-
-    # Remove ```text ... ``` or ``` ... ```
     t = re.sub(r"^```(?:text)?\s*", "", t, flags=re.IGNORECASE)
     t = re.sub(r"\s*```$", "", t)
 
     return t.strip()
 
 
+def _extract_verdict(text: str) -> Literal["T", "NT", "UNKNOWN"]:
+    if not text:
+        return "UNKNOWN"
+
+    m = re.search(r"Final verdict:\s*(T|NT)\b", text, flags=re.IGNORECASE)
+    if not m:
+        return "UNKNOWN"
+
+    verdict = m.group(1).upper()
+    if verdict == "T":
+        return "T"
+    if verdict == "NT":
+        return "NT"
+    return "UNKNOWN"
+
+
 def _prompt_base(function_name: str, context_code: str) -> str:
     return f"""
-You are a termination analysis assistant for Python.
+You are a termination analysis assistant for Python specialized in termination analysis.
 
-Given this extracted context (relevant code only):
+Given the following source code:
 {context_code}
 
 Target function: {function_name}
 
 Task:
-Analyze whether the target function terminates for all inputs.
+Determine whether the target function terminates for all possible inputs.
 
-Requirements:
-- If you believe it always terminates, explain why (high-level proof idea).
-- If you believe it may not terminate, provide a concrete non-terminating execution scenario (e.g., a loop/recursion that can run forever) and explain conditions.
-- If unsure, say what information is missing and what would be needed.
+Definitions:
+- "Terminates (T)" means: for every possible input, the function eventually stops.
+- "Does not terminate (NT)" means: there exists at least one input for which the function does not terminate.
+
+Instructions:
+- Do not state the final verdict at the beginning.
+- Analyze control flow carefully: loops, recursion, and conditions.
+- If termination depends on input conditions, make those conditions explicit and reason about them.
+- Base your reasoning only on the given code. Do not assume behavior that is not present.
+- Be precise and avoid vague statements.
 
 Output format (plain text):
-1) Verdict: Terminates | May not terminate | Unclear
-2) Reasoning (structured, concise)
-3) If May not terminate: one concrete example input / path
+
+1) Key observations
+- Identify loops, recursion, and critical control-flow structures
+- Mention variables influencing termination
+
+2) Termination or non-termination argument
+- Either construct a proof of termination (e.g., decreasing measure)
+- Or explain why such a proof fails and where infinite behavior can occur
+
+3) Relevant conditions on inputs (if any)
+- State conditions under which the reasoning holds
+
+4) Final verdict: T | NT
 """.strip()
 
 
 def _prompt_with_specs(function_name: str, context_code: str, inputs_summary: str) -> str:
     return f"""
-You are a termination analysis assistant for Python.
+You are a termination analysis assistant for Python specialized in termination analysis.
 
-Given this extracted context (relevant code only):
+Given the following source code:
 {context_code}
 
 Target function: {function_name}
@@ -67,36 +94,74 @@ User-provided parameter specifications:
 {inputs_summary}
 
 Task:
-Analyze termination, taking the parameter specifications into account.
-- If specs constrain inputs, analyze termination under those constraints.
-- If multiple parameters are specified, analyze the combined constraint.
-- If a parameter is specified without a concrete value/range, treat it as "type is known" but value is unconstrained.
+Determine whether the target function terminates for all inputs that satisfy the given parameter specifications.
+
+Definitions:
+- "Terminates (T)" means: for every input satisfying the specifications, the function eventually stops.
+- "Does not terminate (NT)" means: there exists at least one input satisfying the specifications for which the function does not terminate.
+
+Instructions:
+- Do not state the final verdict at the beginning.
+- Analyze control flow carefully: loops, recursion, and conditions.
+- Use the parameter specifications explicitly in your reasoning.
+- Treat the specifications as constraints on the input space.
+- If termination depends on input conditions, relate them explicitly to the given specifications.
+- Base your reasoning only on the given code. Do not assume behavior that is not present.
+- Be precise and avoid vague statements.
 
 Output format (plain text):
-1) Verdict (under the given specs): Terminates | May not terminate | Unclear
-2) Reasoning (structured, concise)
-3) If May not terminate: one concrete example input within the specs (if possible)
+
+1) Key observations
+- Identify loops, recursion, and critical control-flow structures
+- Mention variables influencing termination
+
+2) Termination or non-termination argument
+- Either construct a proof of termination for all inputs within the specifications
+- Or explain why such a proof fails and where infinite behavior can occur within the specifications
+
+3) Relevant conditions on inputs (if any)
+- State conditions under which the reasoning holds and how they relate to the specifications
+
+4) Final verdict: T | NT
 """.strip()
 
 
-def analyze_termination(
+def _counterexample_prompt(
     function_name: str,
     context_code: str,
-    inputs_summary: Optional[str] = None,
-    model: str = DEFAULT_MODEL,
 ) -> str:
-    """
-    Termination analysis using Claude (Anthropic Messages API).
-    If inputs_summary is provided (and non-empty), we use the prompt variant that includes it.
-    """
-    client = Anthropic()
+    return f"""
+You are a termination analysis assistant for Python specialized in termination analysis.
 
-    user_prompt = (
-        _prompt_with_specs(function_name, context_code, inputs_summary)
-        if inputs_summary
-        else _prompt_base(function_name, context_code)
-    )
+Given the following source code:
+{context_code}
 
+Target function: {function_name}
+
+Fact:
+The target function does not terminate for at least one input.
+
+Task:
+Provide a concrete input for which the function does not terminate.
+
+Instructions:
+- Use only information that is justified by the given code.
+- Explain the execution path step by step.
+- Identify the loop, recursive cycle, or control-flow pattern that repeats forever.
+- Make clear why execution never reaches a return statement or program end.
+- Focus only on constructing and justifying a non-terminating input.
+
+Output format (plain text):
+
+Counterexample input:
+concrete input
+
+Why it does not terminate:
+short step-by-step explanation
+""".strip()
+
+
+def _run_claude_prompt(client: Anthropic, model: str, user_prompt: str) -> str:
     message = client.messages.create(
         model=model,
         max_tokens=8000,
@@ -108,7 +173,6 @@ def analyze_termination(
         messages=[{"role": "user", "content": user_prompt}],
     )
 
-    # Concatenate text blocks
     parts = []
     for block in getattr(message, "content", []) or []:
         txt = getattr(block, "text", None)
@@ -117,3 +181,45 @@ def analyze_termination(
 
     raw_text = "\n".join(parts).strip()
     return _sanitize_text(raw_text)
+
+
+def analyze_termination(
+    function_name: str,
+    context_code: str,
+    inputs_summary: Optional[str] = None,
+    model: str = DEFAULT_MODEL,
+) -> str:
+    client = Anthropic()
+
+    first_prompt = (
+        _prompt_with_specs(function_name, context_code, inputs_summary)
+        if inputs_summary
+        else _prompt_base(function_name, context_code)
+    )
+
+    first_analysis = _run_claude_prompt(client, model, first_prompt)
+    verdict = _extract_verdict(first_analysis)
+
+    if verdict == "NT":
+        second_prompt = _counterexample_prompt(
+            function_name=function_name,
+            context_code=context_code,
+        )
+        counterexample = _run_claude_prompt(client, model, second_prompt)
+
+        return (
+            first_analysis
+            + "\n\n"
+            + "Concrete non-termination example:\n"
+            + counterexample
+        )
+
+    if verdict == "T":
+        return first_analysis
+
+    return (
+        first_analysis
+        + "\n\n"
+        + "[Warning] Could not reliably extract final verdict. "
+        + "Expected 'Final verdict: T' or 'Final verdict: NT'."
+    )

@@ -29,10 +29,6 @@ def _sanitize_code_output(text: str) -> str:
 
 
 def create_context(function_name: str, source_code: str, model: str = DEFAULT_MODEL) -> str:
-    """
-    Creates context using GPT (OpenAI Responses API).
-    Returns Python code: relevant globals + relevant functions in topological order.
-    """
     client = OpenAI()
 
     response = client.responses.create(
@@ -76,6 +72,5 @@ Rules:
         ],
     )
 
-    # Official SDK convenience property that aggregates text
     raw_text = getattr(response, "output_text", "") or ""
     return _sanitize_code_output(raw_text)

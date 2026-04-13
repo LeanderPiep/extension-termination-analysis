@@ -20,7 +20,6 @@ def _sanitize_code_output(text: str) -> str:
 
     # Remove opening fence like ```python or ``` (at start)
     t = re.sub(r"^\s*```(?:python)?\s*\n?", "", t, flags=re.IGNORECASE)
-    # Remove closing fence ``` (at end)
     t = re.sub(r"\n?\s*```\s*$", "", t)
 
     return t.strip()
@@ -46,7 +45,6 @@ def _ollama_generate(prompt: str, model: str = DEFAULT_MODEL, url: str = DEFAULT
     with request.urlopen(req, timeout=180) as response:
         raw = json.loads(response.read()).get("response", "")
 
-    # normalize escaped newlines
     return raw.replace("\\n", "\n").strip()
 
 
@@ -86,8 +84,6 @@ def create_context(
     - Preserve exact Python syntax and indentation.
     """
 
-    # Keep the "system" instruction equivalent by prefixing a short instruction header
-    # (Ollama /api/generate is single-prompt; we inline the system intent)
     full_prompt = (
         "You are a static program analysis assistant. "
         "You reason over Python source code precisely and deterministically.\n\n"

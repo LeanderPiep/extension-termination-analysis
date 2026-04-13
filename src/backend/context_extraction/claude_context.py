@@ -76,8 +76,6 @@ Rules:
         ],
     )
 
-    # Typical: message.content is a list of content blocks (text blocks etc.)
-    # We'll concatenate all text blocks to be safe.
     parts = []
     for block in getattr(message, "content", []) or []:
         txt = getattr(block, "text", None)

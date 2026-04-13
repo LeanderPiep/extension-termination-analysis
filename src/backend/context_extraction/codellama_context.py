@@ -61,11 +61,9 @@ def _extract_json_from_text(s: str) -> str:
         parts = text.split("```")
         if len(parts) >= 3:
             candidate = parts[1]
-            # remove possible language line like "json" / "python"
             candidate = re.sub(r"^\s*[a-zA-Z0-9_+-]+\s*\n", "", candidate)
             text = candidate.strip()
 
-    # Find first '{' or '['
     start_candidates = []
     for ch in ("{", "["):
         idx = text.find(ch)
@@ -76,7 +74,6 @@ def _extract_json_from_text(s: str) -> str:
 
     start = min(start_candidates)
 
-    # Try raw_decode from each possible '{'/'[' from earliest start onwards
     for i in range(start, len(text)):
         if text[i] not in "{[":
             continue
@@ -129,7 +126,7 @@ def _parse_json_array_of_strings(s: str, what: str, key: str | None = None) -> L
 
 
 # =========================
-# NEW PIPELINE (PROMPTS UNCHANGED)
+# PIPELINE 
 # =========================
 
 def find_called_functions_names(full_code: str, target_fn: str, url: str = DEFAULT_OLLAMA_URL) -> List[str]:
@@ -152,7 +149,6 @@ def find_called_functions_names(full_code: str, target_fn: str, url: str = DEFAU
     - Output ONLY JSON. No markdown, no code fences, no extra text.
     """
     raw = _ollama_generate(prompt, url=url)
-    # Robustly accept {"called_functions":[...]} or plain [...]
     return _parse_json_array_of_strings(raw, "find_called_functions_names", key="called_functions")
 
 
@@ -208,7 +204,7 @@ def find_all_variable_dependencies(called_functions_summary: str, url: str = DEF
     prompt = f"""You are a deterministic Python code extractor.
 
     Task:
-    Identify all global variables that are being used in the given source code. A global variable is a variable that is being used in the code but not defined within a function.
+    Identify all global variables that are being used in the given source code. A global variable is a variable that is being used in the code but not defined within a function. Function parameters are not global variables.
 
     Full source code:
     {called_functions_summary}
@@ -219,7 +215,6 @@ def find_all_variable_dependencies(called_functions_summary: str, url: str = DEF
     - No explanations, no extra text.
     """
     raw = _ollama_generate(prompt, url=url)
-    # Robustly accept plain array, or object that contains a single list[str]
     return _parse_json_array_of_strings(raw, "find_all_variable_dependencies", key=None)
 
 
@@ -259,8 +254,6 @@ def create_context(function_name: str, source_code: str, url: str = DEFAULT_OLLA
     """
     called_functions = find_called_functions_names(source_code, function_name, url=url)
 
-    # Keep your exact "Neu" behavior: pass whatever representation you want into prompt.
-    # Here we pass a JSON array string (robust & deterministic).
     called_functions_json = json.dumps(called_functions)
 
     called_functions_summary = summarize_called_functions(source_code, called_functions_json, url=url)
