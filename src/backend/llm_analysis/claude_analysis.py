@@ -43,71 +43,50 @@ def _extract_verdict(text: str) -> Literal["T", "NT", "UNKNOWN"]:
 
 def _prompt_base(function_name: str, context_code: str) -> str:
     return f"""
-You are a termination analysis assistant for Python specialized in termination analysis.
-
-Given the following source code:
-{context_code}
-
-Target function: {function_name}
+    
+The Target function might either terminate for all inputs or diverges for at least one input.
 
 Task:
-Determine whether the target function terminates for all possible inputs.
-
-Definitions:
-- "Terminates (T)" means: for every possible input, the function eventually stops.
-- "Does not terminate (NT)" means: there exists at least one input for which the function does not terminate.
+Determine whether the target function terminates for all or diverges for atleast one input.
+If you come to the conclusion that the function terminates for all inputs, then answer "Final verdict: T".
+If you come to the conclusion that there exists atleast one input for which the function diverges, then answer "Final verdict: NT".
 
 Instructions:
 - Do not state the final verdict at the beginning.
-- Analyze control flow carefully: loops, recursion, and conditions.
+- Analyze the control flow carefully: loops, recursion, and conditions.
 - If termination depends on input conditions, make those conditions explicit and reason about them.
-- Base your reasoning only on the given code. Do not assume behavior that is not present.
-- Be precise and avoid vague statements.
 
-Output format (plain text):
+Output format:
 
-1) Key observations
+1) Termination or non-termination argument
 - Identify loops, recursion, and critical control-flow structures
 - Mention variables influencing termination
 
-2) Termination or non-termination argument
-- Either construct a proof of termination (e.g., decreasing measure)
-- Or explain why such a proof fails and where infinite behavior can occur
-
-3) Relevant conditions on inputs (if any)
+2) Relevant conditions on inputs
 - State conditions under which the reasoning holds
 
-4) Final verdict: T | NT
+3) Final verdict
+
+Target function: {function_name}
+
+Python source code:
+{context_code}
 """.strip()
 
 
 def _prompt_with_specs(function_name: str, context_code: str, inputs_summary: str) -> str:
     return f"""
-You are a termination analysis assistant for Python specialized in termination analysis.
-
-Given the following source code:
-{context_code}
-
-Target function: {function_name}
-
-User-provided parameter specifications:
-{inputs_summary}
 
 Task:
-Determine whether the target function terminates for all inputs that satisfy the given parameter specifications.
-
-Definitions:
-- "Terminates (T)" means: for every input satisfying the specifications, the function eventually stops.
-- "Does not terminate (NT)" means: there exists at least one input satisfying the specifications for which the function does not terminate.
+Determine whether the target function terminates for th User-provided parameter specifications.
+If you come to the conclusion that the function terminates, then answer "Final verdict: T".
+If you come to the conclusion that the function diverges, then answer "Final verdict: NT".
 
 Instructions:
 - Do not state the final verdict at the beginning.
 - Analyze control flow carefully: loops, recursion, and conditions.
 - Use the parameter specifications explicitly in your reasoning.
 - Treat the specifications as constraints on the input space.
-- If termination depends on input conditions, relate them explicitly to the given specifications.
-- Base your reasoning only on the given code. Do not assume behavior that is not present.
-- Be precise and avoid vague statements.
 
 Output format (plain text):
 
@@ -115,14 +94,16 @@ Output format (plain text):
 - Identify loops, recursion, and critical control-flow structures
 - Mention variables influencing termination
 
-2) Termination or non-termination argument
-- Either construct a proof of termination for all inputs within the specifications
-- Or explain why such a proof fails and where infinite behavior can occur within the specifications
-
-3) Relevant conditions on inputs (if any)
+2) Relevant conditions on inputs 
 - State conditions under which the reasoning holds and how they relate to the specifications
 
-4) Final verdict: T | NT
+3) Final verdict
+
+Target function: {function_name}
+
+User-provided parameter specifications: {inputs_summary}
+
+Python source code: {context_code}
 """.strip()
 
 
@@ -131,33 +112,28 @@ def _counterexample_prompt(
     context_code: str,
 ) -> str:
     return f"""
-You are a termination analysis assistant for Python specialized in termination analysis.
-
-Given the following source code:
-{context_code}
-
-Target function: {function_name}
-
-Fact:
 The target function does not terminate for at least one input.
 
 Task:
 Provide a concrete input for which the function does not terminate.
 
 Instructions:
-- Use only information that is justified by the given code.
 - Explain the execution path step by step.
 - Identify the loop, recursive cycle, or control-flow pattern that repeats forever.
 - Make clear why execution never reaches a return statement or program end.
 - Focus only on constructing and justifying a non-terminating input.
 
-Output format (plain text):
+Output format:
 
 Counterexample input:
 concrete input
 
 Why it does not terminate:
 short step-by-step explanation
+
+Target function: {function_name}
+
+Python source code: {context_code}
 """.strip()
 
 
@@ -167,8 +143,8 @@ def _run_claude_prompt(client: Anthropic, model: str, user_prompt: str) -> str:
         max_tokens=8000,
         temperature=0.0,
         system=(
-            "You are a rigorous static program analysis assistant. "
-            "Be deterministic and do not invent code that is not present in the provided context."
+            "You are an expert code analyzer specializing in Python program termination analysis. "
+            "You will be given a Python source code and a Target function."
         ),
         messages=[{"role": "user", "content": user_prompt}],
     )
@@ -191,11 +167,10 @@ def analyze_termination(
 ) -> str:
     client = Anthropic()
 
-    first_prompt = (
-        _prompt_with_specs(function_name, context_code, inputs_summary)
-        if inputs_summary
-        else _prompt_base(function_name, context_code)
-    )
+    if inputs_summary:
+        first_prompt = _prompt_with_specs(function_name, context_code, inputs_summary)
+    else:
+        first_prompt = _prompt_base(function_name,context_code)
 
     first_analysis = _run_claude_prompt(client, model, first_prompt)
     verdict = _extract_verdict(first_analysis)
