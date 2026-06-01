@@ -43,24 +43,20 @@ def create_context(function_name: str, source_code: str, model: str = DEFAULT_MO
         system=(
             "You are a static program analysis assistant. "
             "You reason over Python source code precisely and deterministically."
+            "You will be given a Python source code and a Target function."
         ),
         messages=[
             {
                 "role": "user",
                 "content": f"""
-Full source code:
-{source_code}
-
-Target function:
-{function_name}
 
 Task:
-1. Identify ALL functions that are directly or indirectly called by the target function.
+1. Identify ALL functions that are directly or indirectly called by the Target function.
 2. Identify ALL global variables used by those functions.
 3. Extract ONLY:
    - the definitions of those global variables
    - the definitions of those functions
-   - the definition of the target function itself
+   - the definition of the Target function itself
 4. Sort the extracted functions topologically:
    - callees first
    - callers after callees
@@ -71,6 +67,12 @@ Rules:
 - Do NOT include unused functions or globals.
 - Do NOT include comments, explanations, or markdown.
 - Preserve exact Python syntax and indentation.
+
+Target function:
+{function_name}
+
+Python source code:
+{source_code}
 """,
             }
         ],

@@ -54,25 +54,18 @@ def create_context(
     model: str = DEFAULT_MODEL,
     url: str = DEFAULT_OLLAMA_URL,
 ) -> str:
-    """
-    Creates context using Qwen via Ollama.
-    Returns Python code: relevant globals + relevant functions in topological order.
-    Prompt is intentionally identical (same content) to gpt_cotnext.py.
-    """
     prompt = f"""
-    Full source code:
-    {source_code}
-
-    Target function:
-    {function_name}
+    You are a static program analysis assistant.
+    You reason over Python source code precisely and deterministically.
+    You will be given a Python source code and a Target function.
 
     Task:
-    1. Identify ALL functions that are directly or indirectly called by the target function.
+    1. Identify ALL functions that are directly or indirectly called by the Target function.
     2. Identify ALL global variables used by those functions.
     3. Extract ONLY:
     - the definitions of those global variables
     - the definitions of those functions
-    - the definition of the target function itself
+    - the definition of the Target function itself
     4. Sort the extracted functions topologically:
     - callees first
     - callers after callees
@@ -82,13 +75,14 @@ def create_context(
     - Do NOT include unused functions or globals.
     - Do NOT include comments, explanations, or markdown.
     - Preserve exact Python syntax and indentation.
+
+    Target function:
+    {function_name}
+
+    Python source code:
+    {source_code}
     """
 
-    full_prompt = (
-        "You are a static program analysis assistant. "
-        "You reason over Python source code precisely and deterministically.\n\n"
-        + prompt
-    )
 
-    raw_text = _ollama_generate(full_prompt, model=model, url=url)
+    raw_text = _ollama_generate(prompt, model=model, url=url)
     return _sanitize_code_output(raw_text)

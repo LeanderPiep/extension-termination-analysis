@@ -130,39 +130,42 @@ def _parse_json_array_of_strings(s: str, what: str, key: str | None = None) -> L
 # =========================
 
 def find_called_functions_names(full_code: str, target_fn: str, url: str = DEFAULT_OLLAMA_URL) -> List[str]:
-    prompt = f"""You are a deterministic Python code extractor.
-
-    Full source code:
-    {full_code}
+    prompt = f"""
+    You are a static program analysis assistant.
+    You reason over Python source code precisely and deterministically.
+    You will be given a Python source code and a Target function.
 
     Task:
     Determine the set of functions that are directly or indirectly called by the target function.
 
     - Return ONLY a JSON object with this exact schema: "called_functions": ["..."]
-    - Include {target_fn}.
-    - Include only functions that are directly or indirectly called by {target_fn}.
+    - Include the Target function.
+    - Include only functions that are directly or indirectly called by Target function.
 
     Output requirements:
     - Return ONLY a JSON object with this exact schema: "called_functions": ["..."]
     - The list MUST include the target function itself.
     - Use function names exactly as defined in the source code.
     - Output ONLY JSON. No markdown, no code fences, no extra text.
+
+    Target function:
+    {target_fn}
+
+    Python source code:
+    {full_code}
     """
     raw = _ollama_generate(prompt, url=url)
     return _parse_json_array_of_strings(raw, "find_called_functions_names", key="called_functions")
 
 
 def summarize_called_functions(full_code: str, called_functions: str, url: str = DEFAULT_OLLAMA_URL) -> str:
-    prompt = f"""You are a deterministic Python code extractor.
-
-    Full source code:
-    {full_code}
-
-    Relevant Functions:
-    {called_functions}
+    prompt = f"""
+    You are a static program analysis assistant.
+    You reason over Python source code precisely and deterministically.
+    You will be given a Python source code and a JSON list 'Relevant Functions'.
 
     Task:
-    - Extract ONLY the function definitions whose names are in "Relevant function names"
+    - Extract ONLY the function definitions whose names are in 'Relevant Functions'
     - Return them concatenated as plain Python code
 
     Hard rules:
@@ -174,18 +177,24 @@ def summarize_called_functions(full_code: str, called_functions: str, url: str =
     Output format constraint:
     - The first non-whitespace characters of your output MUST be 'def' or 'async def'.
     - Do NOT include ```python blocks
+
+    Relevant Functions:
+    {called_functions}
+    
+    Python source code:
+    {full_code}
     """
     raw = _ollama_generate(prompt, url=url)
     return _sanitize_code_output(raw)
 
 
 def topologically_sort_functions(called_functions_summary: str, url: str = DEFAULT_OLLAMA_URL) -> str:
-    prompt = f"""You are a deterministic Python code extractor.
+    prompt = f"""
+    You are a static program analysis assistant.
+    You reason over Python source code precisely and deterministically.
+    You will be given a Python source code containing function definitions.
 
     Task:
-    - You are given a set of Python function definitions:
-    {called_functions_summary}
-
     - Sort these functions in topological order based on their dependencies:
         * Functions that do not call any other functions from this set should appear at the top.
         * Functions that call other functions should appear after the ones they call.
@@ -195,37 +204,42 @@ def topologically_sort_functions(called_functions_summary: str, url: str = DEFAU
     - Output ONLY Python code. No markdown. No backticks. No explanations. No comments.
     - Preserve the original indentation and line breaks exactly.
     - Do NOT include ```python blocks
+
+    Python source code:
+    {called_functions_summary}
     """
     raw = _ollama_generate(prompt, url=url)
     return _sanitize_code_output(raw)
 
 
 def find_all_variable_dependencies(called_functions_summary: str, url: str = DEFAULT_OLLAMA_URL) -> List[str]:
-    prompt = f"""You are a deterministic Python code extractor.
+    prompt = f"""
+    You are a static program analysis assistant.
+    You reason over Python source code precisely and deterministically.
+    You will be given a Python source code containing function definitions.
 
     Task:
-    Identify all global variables that are being used in the given source code. A global variable is a variable that is being used in the code but not defined within a function. Function parameters are not global variables.
-
-    Full source code:
-    {called_functions_summary}
+    Identify all global variables that are being used in the given source code. 
+    A global variable is a variable that is being used in the code but not defined within a function. 
+    Function parameters are NOT global variables.
 
     Rules:
     - Output ONLY a JSON array of variable names, e.g. ["var_a", "var_b"]
     - Do NOT include the function names in the JSON array.
     - No explanations, no extra text.
+
+    Python source code:
+    {called_functions_summary}
     """
     raw = _ollama_generate(prompt, url=url)
     return _parse_json_array_of_strings(raw, "find_all_variable_dependencies", key=None)
 
 
 def summarize_called_global_variables(full_code: str, called_global_variables: str, url: str = DEFAULT_OLLAMA_URL) -> str:
-    prompt = f"""You are a deterministic Python code extractor.
-
-    Full source code:
-    {full_code}
-
-    Global Variables:
-    {called_global_variables}
+    prompt = f"""
+    You are a static program analysis assistant.
+    You reason over Python source code precisely and deterministically.
+    You will be given a Python source code and a JSON list 'Global Variables'.
 
     Task:
     - Identify the definitions of the variables listed in 'Global Variables' and combine them into one String.
@@ -237,6 +251,12 @@ def summarize_called_global_variables(full_code: str, called_global_variables: s
     - No explanations, no comments, no extra text.
     - Do not add comments, explanations, or language identifiers.
     - Do NOT include ```python blocks
+
+    Global Variables:
+    {called_global_variables}
+
+    Python source code:
+    {full_code}
     """
     raw = _ollama_generate(prompt, url=url)
     return _sanitize_code_output(raw)
