@@ -43,7 +43,7 @@ def _extract_verdict(text: str) -> Literal["T", "NT", "UNKNOWN"]:
 
 def _prompt_base(function_name: str, context_code: str) -> str:
     return f"""
-    
+
 The Target function might either terminate for all inputs or diverges for at least one input.
 
 Task:
@@ -122,14 +122,7 @@ Instructions:
 - Identify the loop, recursive cycle, or control-flow pattern that repeats forever.
 - Make clear why execution never reaches a return statement or program end.
 - Focus only on constructing and justifying a non-terminating input.
-
-Output format:
-
-Counterexample input:
-concrete input
-
-Why it does not terminate:
-short step-by-step explanation
+- Give a concrete input that leads to non-termination.
 
 Target function: {function_name}
 

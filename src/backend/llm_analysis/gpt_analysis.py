@@ -74,7 +74,7 @@ Python source code:
 
 def _prompt_with_specs(function_name: str, context_code: str, inputs_summary: str) -> str:
     return f"""
-    
+
 Task:
 Determine whether the target function terminates for th User-provided parameter specifications.
 If you come to the conclusion that the function terminates, then answer "Final verdict: T".
@@ -121,14 +121,7 @@ Instructions:
 - Identify the loop, recursive cycle, or control-flow pattern that repeats forever.
 - Make clear why execution never reaches a return statement or program end.
 - Focus only on constructing and justifying a non-terminating input.
-
-Output format:
-
-Counterexample input:
-concrete input
-
-Why it does not terminate:
-short step-by-step explanation
+- Give a concrete input that leads to non-termination.
 
 Target function: {function_name}
 

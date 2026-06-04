@@ -138,10 +138,6 @@ def find_called_functions_names(full_code: str, target_fn: str, url: str = DEFAU
     Task:
     Determine the set of functions that are directly or indirectly called by the target function.
 
-    - Return ONLY a JSON object with this exact schema: "called_functions": ["..."]
-    - Include the Target function.
-    - Include only functions that are directly or indirectly called by Target function.
-
     Output requirements:
     - Return ONLY a JSON object with this exact schema: "called_functions": ["..."]
     - The list MUST include the target function itself.
@@ -165,16 +161,14 @@ def summarize_called_functions(full_code: str, called_functions: str, url: str =
     You will be given a Python source code and a JSON list 'Relevant Functions'.
 
     Task:
-    - Extract ONLY the function definitions whose names are in 'Relevant Functions'
+    - Extract ONLY the function definitions from the Python source code whose names are in 'Relevant Functions'
     - Return them concatenated as plain Python code
-
-    Hard rules:
-    - Output ONLY Python code. No markdown. No backticks. No explanations. No comments.
-    - Do NOT include any global variables, imports, or any other statements.
+    - Output ONLY Python code. No markdown. No explanations. No comments.
+    - Do NOT include any function definitions, imports, or any other statements.
     - Include each function exactly once.
     - Preserve the original indentation and line breaks exactly.
 
-    Output format constraint:
+    Output requirements:
     - The first non-whitespace characters of your output MUST be 'def' or 'async def'.
     - Do NOT include ```python blocks
 
@@ -200,9 +194,8 @@ def topologically_sort_functions(called_functions_summary: str, url: str = DEFAU
         * Functions that call other functions should appear after the ones they call.
     - Keep the function definitions exactly as they are, preserve indentation and line breaks.
 
-    Rules:
-    - Output ONLY Python code. No markdown. No backticks. No explanations. No comments.
-    - Preserve the original indentation and line breaks exactly.
+    Output requirements:
+    - Output ONLY Python code. No markdown. No explanations. No comments.
     - Do NOT include ```python blocks
 
     Python source code:
@@ -223,10 +216,9 @@ def find_all_variable_dependencies(called_functions_summary: str, url: str = DEF
     A global variable is a variable that is being used in the code but not defined within a function. 
     Function parameters are NOT global variables.
 
-    Rules:
-    - Output ONLY a JSON array of variable names, e.g. ["var_a", "var_b"]
-    - Do NOT include the function names in the JSON array.
-    - No explanations, no extra text.
+    Output requirements:
+    - Return ONLY a JSON object with this exact schema: "called_global_variables": ["..."]
+    - Output ONLY JSON. No markdown, no code fences, no extra text.
 
     Python source code:
     {called_functions_summary}
@@ -242,14 +234,16 @@ def summarize_called_global_variables(full_code: str, called_global_variables: s
     You will be given a Python source code and a JSON list 'Global Variables'.
 
     Task:
-    - Identify the definitions of the variables listed in 'Global Variables' and combine them into one String.
-    - Do not include functions.
+    - Extract ONLY the variable definitions whose names are in 'Global Variables'
+    - Return them concatenated as plain Python code
+    - Output ONLY Python code. No markdown. No backticks. No explanations. No comments.
+    - Do NOT include any global variables, imports, or any other statements.
+    - Include each global variable exactly once.
+    - Preserve the original indentation and line breaks exactly.
 
-    Rules:
+    Output requirements:
     - Output valid Python code.
-    - Preserve indentation and line breaks.
     - No explanations, no comments, no extra text.
-    - Do not add comments, explanations, or language identifiers.
     - Do NOT include ```python blocks
 
     Global Variables:

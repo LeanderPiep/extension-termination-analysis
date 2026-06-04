@@ -137,14 +137,7 @@ Instructions:
 - Identify the loop, recursive cycle, or control-flow pattern that repeats forever.
 - Make clear why execution never reaches a return statement or program end.
 - Focus only on constructing and justifying a non-terminating input.
-
-Output format:
-
-Counterexample input:
-concrete input
-
-Why it does not terminate:
-short step-by-step explanation
+- Give a concrete input that leads to non-termination.
 
 Target function: {function_name}
 
