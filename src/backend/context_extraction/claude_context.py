@@ -62,8 +62,7 @@ Task:
    - callers after callees
 
 Rules:
-- Output ONLY valid Python code
-- Do NOT include ```python blocks
+- Output valid Python code.
 - Do NOT include unused functions or globals.
 - Do NOT include comments, explanations, or markdown.
 - Preserve exact Python syntax and indentation.
