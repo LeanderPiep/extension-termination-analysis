@@ -189,9 +189,9 @@ def topologically_sort_functions(called_functions_summary: str, url: str = DEFAU
     You will be given a Python source code containing function definitions.
 
     Task:
-    - Sort these functions in topological order based on their dependencies:
-        * Functions that do not call any other functions from this set should appear at the top.
-        * Functions that call other functions should appear after the ones they call.
+    Sort these functions in topological order based on their dependencies:
+    - Functions that do not call any other functions from this set should appear at the top.
+    - Functions that call other functions should appear after the ones they call.
     - Keep the function definitions exactly as they are, preserve indentation and line breaks.
 
     Output requirements:

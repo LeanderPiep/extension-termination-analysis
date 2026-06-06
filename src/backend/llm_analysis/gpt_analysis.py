@@ -50,20 +50,10 @@ If you come to the conclusion that the function terminates for all inputs, then 
 If you come to the conclusion that there exists atleast one input for which the function diverges, then answer "Final verdict: NT".
 
 Instructions:
-- Do not state the final verdict at the beginning.
 - Analyze the control flow carefully: loops, recursion, and conditions.
+- Reason about the terminatio behaviour of the program
 - If termination depends on input conditions, make those conditions explicit and reason about them.
-
-Output format:
-
-1) Termination or non-termination argument
-- Identify loops, recursion, and critical control-flow structures
-- Mention variables influencing termination
-
-2) Relevant conditions on inputs
-- State conditions under which the reasoning holds
-
-3) Final verdict
+- Do not state the final verdict at the beginning.
 
 Target function: {function_name}
 
@@ -76,7 +66,7 @@ def _prompt_with_specs(function_name: str, context_code: str, inputs_summary: st
     return f"""
 
 Task:
-Determine whether the target function terminates for th User-provided parameter specifications.
+Determine whether the target function terminates for the User-provided parameter specifications.
 If you come to the conclusion that the function terminates, then answer "Final verdict: T".
 If you come to the conclusion that the function diverges, then answer "Final verdict: NT".
 
@@ -85,17 +75,6 @@ Instructions:
 - Analyze control flow carefully: loops, recursion, and conditions.
 - Use the parameter specifications explicitly in your reasoning.
 - Treat the specifications as constraints on the input space.
-
-Output format (plain text):
-
-1) Key observations
-- Identify loops, recursion, and critical control-flow structures
-- Mention variables influencing termination
-
-2) Relevant conditions on inputs 
-- State conditions under which the reasoning holds and how they relate to the specifications
-
-3) Final verdict
 
 Target function: {function_name}
 

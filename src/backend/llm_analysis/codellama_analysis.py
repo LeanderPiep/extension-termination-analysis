@@ -63,25 +63,15 @@ def _prompt_base(function_name: str, context_code: str) -> str:
 The Target function might either terminate for all inputs or diverges for at least one input.
 
 Task:
-Determine whether the target function terminates for all or diverges for atleast one input.
+Determine whether the target function terminates for all inputs or diverges for atleast one input.
 If you come to the conclusion that the function terminates for all inputs, then answer "Final verdict: T".
 If you come to the conclusion that there exists atleast one input for which the function diverges, then answer "Final verdict: NT".
 
 Instructions:
-- Do not state the final verdict at the beginning.
 - Analyze the control flow carefully: loops, recursion, and conditions.
+- Reason about the terminatio behaviour of the program
 - If termination depends on input conditions, make those conditions explicit and reason about them.
-
-Output format:
-
-1) Termination or non-termination argument
-- Identify loops, recursion, and critical control-flow structures
-- Mention variables influencing termination
-
-2) Relevant conditions on inputs
-- State conditions under which the reasoning holds
-
-3) Final verdict
+- Do not state the final verdict at the beginning.
 
 Target function: {function_name}
 
@@ -101,18 +91,6 @@ Instructions:
 - Do not state the final verdict at the beginning.
 - Analyze control flow carefully: loops, recursion, and conditions.
 - Use the parameter specifications explicitly in your reasoning.
-- Treat the specifications as constraints on the input space.
-
-Output format (plain text):
-
-1) Key observations
-- Identify loops, recursion, and critical control-flow structures
-- Mention variables influencing termination
-
-2) Relevant conditions on inputs 
-- State conditions under which the reasoning holds and how they relate to the specifications
-
-3) Final verdict
 
 Target function: {function_name}
 
