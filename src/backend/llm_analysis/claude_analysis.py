@@ -76,7 +76,6 @@ Instructions:
 - Do not state the final verdict at the beginning.
 - Analyze control flow carefully: loops, recursion, and conditions.
 - Use the parameter specifications explicitly in your reasoning.
-- Treat the specifications as constraints on the input space.
 
 Target function: {function_name}
 

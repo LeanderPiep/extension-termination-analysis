@@ -74,7 +74,6 @@ Instructions:
 - Do not state the final verdict at the beginning.
 - Analyze control flow carefully: loops, recursion, and conditions.
 - Use the parameter specifications explicitly in your reasoning.
-- Treat the specifications as constraints on the input space.
 
 Target function: {function_name}
 
@@ -111,7 +110,7 @@ Python source code: {context_code}
 def _run_openai_prompt(client: OpenAI, model: str, user_prompt: str) -> str:
     response = client.responses.create(
         model=model,
-        temperature=0.0,
+        reasoning={"effort": "medium"},
         input=[
             {
                 "role": "system",

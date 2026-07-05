@@ -33,7 +33,7 @@ def create_context(function_name: str, source_code: str, model: str = DEFAULT_MO
 
     response = client.responses.create(
         model=model,
-        temperature=0.0,
+        reasoning={"effort": "medium"},
         input=[
             {
                 "role": "system",
