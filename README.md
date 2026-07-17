@@ -1,71 +1,65 @@
-# termination-analysis README
+# Termination Analysis
 
-This is the README for your extension "termination-analysis". After writing up a brief description, we recommend including the following sections.
+This repository contains the source code of the prototype developed as part of the master's thesis:
+
+**Termination Analysis using Large Language Models**
+
+The prototype is implemented as a Visual Studio Code extension and analyzes whether Python programs terminate for all possible inputs. It automatically extracts the program context relevant for the analysis and uses LLMs to predict the program's termination behavior.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+- Visual Studio Code extension for Python termination analysis
+- Automatic extraction of the relevant program context
+- Support for local models via Ollama
+- Support for OpenAI and Anthropic models
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+Before running the extension, make sure the following software is installed:
 
-## Extension Settings
+- Visual Studio Code
+- Node.js 
+- Python 3
+- Ollama
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+To use cloud-based models, an API key must be stored as a system environment variable:
 
-For example:
+- `OPENAI_API_KEY` for OpenAI models
+- `ANTHROPIC_API_KEY` for Anthropic models
 
-This extension contributes the following settings:
+## Installation
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+Clone the repository and create a Python virtual environment:
 
-## Known Issues
+```bash
+python3 -m venv env
+```
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+Activate the virtual environment.
 
-## Release Notes
+Install the required Python packages:
 
-Users appreciate release notes as you update your extension.
+```bash
+pip install -r requirements.txt
+```
 
-### 1.0.0
+Install the Node.js dependencies:
 
-Initial release of ...
+```bash
+npm install
+```
 
-### 1.0.1
+## Ollama Setup
 
-Fixed issue #.
+Install the models used by the prototype:
 
-### 1.1.0
+```bash
+ollama pull qwen2.5-coder:14b
+ollama pull codellama:13b
+```
 
-Added features X, Y, and Z.
+## Running the Extension
 
----
+Press **F5** in VS Code to launch the Extension Development Host.
 
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+The extension can then be used from within the new VS Code window.
